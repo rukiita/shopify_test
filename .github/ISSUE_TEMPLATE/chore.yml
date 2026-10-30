@@ -1,0 +1,25 @@
+name: Chore
+description: Work that is neither a requirement nor a decision (setup, tooling, etc.)
+title: "[CHORE] "
+labels: ["chore"]
+body:
+  - type: textarea
+    id: purpose
+    attributes:
+      label: Purpose
+    validations:
+      required: true
+  - type: textarea
+    id: tasks
+    attributes:
+      label: Tasks
+      value: |
+        - [ ] 
+    validations:
+      required: true
+  - type: textarea
+    id: done
+    attributes:
+      label: Done when
+    validations:
+      required: true

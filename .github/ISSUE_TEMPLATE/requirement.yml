@@ -1,0 +1,46 @@
+name: Requirement
+description: One requirement from the task description (BE-n / SUB-n)
+title: "[BE-n] "
+labels: ["requirement"]
+body:
+  - type: input
+    id: req_id
+    attributes:
+      label: Requirement ID
+      description: ID in docs/requirements.md
+      placeholder: BE-3
+    validations:
+      required: true
+  - type: textarea
+    id: source
+    attributes:
+      label: Task description
+      description: Quote the relevant part of the task description verbatim
+      render: markdown
+    validations:
+      required: true
+  - type: textarea
+    id: spec
+    attributes:
+      label: Interpretation
+      description: How the requirement is read, and related ADRs / DECs
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: Acceptance criteria
+      description: Checklist. Close the issue when all items are met
+      value: |
+        - [ ] 
+    validations:
+      required: true
+  - type: textarea
+    id: tests
+    attributes:
+      label: Test list
+      description: |
+        Written before implementation. Work through it top to bottom with Red → Green → Refactor.
+        Naming: BE-{n} {Feature} : {spec}. {test case}
+      value: |
+        - [ ] `BE-n Feature : 1. `
+    validations:
+      required: true

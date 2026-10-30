@@ -1,0 +1,35 @@
+name: Decision
+description: An open question the task description does not answer (DEC-n). The outcome is recorded in an ADR or the README
+title: "[DEC-n] "
+labels: ["decision"]
+body:
+  - type: textarea
+    id: question
+    attributes:
+      label: Question
+      description: What needs to be decided, and why the task description alone does not settle it
+    validations:
+      required: true
+  - type: textarea
+    id: options
+    attributes:
+      label: Options
+      value: |
+        1. 
+        2. 
+    validations:
+      required: true
+  - type: textarea
+    id: findings
+    attributes:
+      label: Findings
+      description: Evidence such as links to official documentation
+  - type: dropdown
+    id: record
+    attributes:
+      label: Where the outcome is recorded
+      options:
+        - ADR (docs/adr/)
+        - README "Interpretation of the task"
+    validations:
+      required: true
