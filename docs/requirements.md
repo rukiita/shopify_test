@@ -8,7 +8,7 @@ Each requirement in the task description has an ID and a matching GitHub issue.
 
 Issue numbers are the ones assigned when `scripts/bootstrap-issues.sh` runs on a fresh repository.
 The script stops if any issue or PR already exists, so the numbers cannot drift.
-DEC-7 (#22) was added later, so its number does not follow DEC-6.
+DEC-7 (#22) and #23–#24 were added later, so their numbers do not follow their groups.
 
 ---
 
@@ -20,11 +20,11 @@ DEC-7 (#22) was added later, so its number does not follow DEC-6.
 | BE-2 | #2 | Order list UI | Create user-friendly interface that displays list of orders | Step 4 |
 | BE-3 | #3 | Add tag | Allow merchants to add tag to an order | Step 5 |
 | BE-4 | #4 | Remove tag | (Allow merchants to) remove tag from an order | Step 5 |
-| BE-5 | #5 | CSV export | Allow merchants to export orders to a CSV file (9 fields in the CSV template) | Step 6 |
+| BE-5 | #5 | CSV export | Allow merchants to export orders to a CSV file (9 fields in the CSV template, plus Product title / Product tags) | Step 6 |
 | BE-6 | #6 | Fields not in the order JSON | Need some fields not in order/id/.json: Product title, Product tags | Step 3 |
 
 BE-3 and BE-4 are one sentence in the task, but they are split because the operations and their failure modes differ.
-BE-6 is a set of CSV columns, but it is kept separate from BE-5 because the real work is how the data is fetched (ADR-0003).
+BE-6 covers fetching and storing Product title / Product tags (ADR-0003). Outputting them as CSV columns is part of BE-5, so BE-6 can be closed in Step 3.
 
 ## Submission
 
@@ -58,6 +58,8 @@ SUB-* deliverables are documents, so they have no tests.
 | #19 | Environment setup (development store, scopes, protected customer data) | Step 1 |
 | #20 | Vitest setup and test naming | Step 1 |
 | #21 | Sync existing orders | Step 3 |
+| #23 | Database schema and migration | Step 2 |
+| #24 | Review test coverage against requirements | Step 7 |
 
 #21 is not in the task description. It is added because orders placed before the app is installed never arrive via webhook.
 
@@ -84,8 +86,8 @@ it("BE-3 Add tag : 1. trims surrounding whitespace", ...);
 | 2 | Order list | 1 = the order list is displayed (columns decided in DEC-6) |
 | 3 | Add tag | 1 = a tag can be added to an order |
 | 4 | Remove tag | 1 = a tag can be removed from an order |
-| 5 | CSV export | 1 = orders can be exported to a CSV file / 2–10 = CSV template columns in order (2 = Order id … 10 = Created at) |
-| 6 | Fields not in order JSON | 1 = Product title / 2 = Product tags |
+| 5 | CSV export | 1 = orders can be exported to a CSV file / 2–10 = CSV template columns in order (2 = Order id … 10 = Created at) / 11 = Product title / 12 = Product tags |
+| 6 | Fields not in order JSON | 1 = Product title is fetched and stored / 2 = Product tags are fetched and stored |
 | 7 | Whole app | Cross-cutting tests only (no direct basis in the task) |
 
 Tests without a direct basis in the task (signature verification, idempotency, escaping, etc.) use the nearest spec number.

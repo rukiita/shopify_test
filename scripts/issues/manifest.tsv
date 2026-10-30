@@ -16,8 +16,10 @@
 15-DEC-3.md	[DEC-3] Order data source: webhook payload or GraphQL refetch	decision,area:webhook	Step 0: Requirements and decisions
 16-DEC-4.md	[DEC-4] Tag storage: Shopify or app only	decision,area:tags	Step 0: Requirements and decisions
 17-DEC-5.md	[DEC-5] Webhook processing: synchronous or queued	decision,area:webhook	Step 3: Webhook ingestion
-18-DEC-6.md	[DEC-6] Interpretation of the task (CSV rows, product title, address, etc.)	decision,area:csv	Step 0: Requirements and decisions
+18-DEC-6.md	[DEC-6] Interpretation of the task (CSV rows, product title, address, etc.)	decision,area:csv,area:ui	Step 0: Requirements and decisions
 19-CHORE-env.md	[CHORE] Environment setup (development store, scopes, protected customer data)	chore	Step 1: Environment setup
 20-CHORE-vitest.md	[CHORE] Set up Vitest and test naming	chore	Step 1: Environment setup
 21-ENH-sync.md	[ENH] Sync existing orders	enhancement,area:webhook	Step 3: Webhook ingestion
 22-DEC-7.md	[DEC-7] Development process: adopt TDD or not	decision	Step 0: Requirements and decisions
+23-CHORE-schema.md	[CHORE] Database schema and migration	chore	Step 2: Database design
+24-CHORE-test-review.md	[CHORE] Review test coverage against requirements	chore	Step 7: Test review
