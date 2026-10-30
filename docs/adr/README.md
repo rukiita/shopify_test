@@ -18,7 +18,7 @@ Code-level choices go in code comments.
 |---|---|---|---|
 | [0001](0001-react-router-template.md) | Build on the React Router v7 app template | Accepted | #13 |
 | [0002](0002-polaris-web-components.md) | Build the UI with Polaris Web Components | Proposed | #14 |
-| [0003](0003-refetch-order-via-graphql.md) | Use webhooks as triggers and refetch orders via GraphQL | Proposed | #15 |
+| [0003](0003-refetch-order-via-graphql.md) | Use webhooks as triggers and refetch orders via GraphQL | Accepted | #15 |
 | [0004](0004-sync-tags-to-shopify.md) | Write order tags to Shopify as the single source of truth | Proposed | #16 |
 | [0005](0005-process-webhooks-synchronously.md) | Process webhooks synchronously within the request | Proposed | #17 |
 | [0006](0006-tdd.md) | Develop with TDD and merge PRs with merge commits | Proposed | #22 |
