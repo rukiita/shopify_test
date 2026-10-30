@@ -51,4 +51,31 @@ Do not write tests against data whose shape you have not seen, such as GraphQL r
 
 - Fill in every item of the PR template
 - Put `Closes #n` in the description
+- Explain **why**, not only what: for a decision PR, state what was verified and how the decision was made
 - Merge with **Create a merge commit**. Squash and rebase merges are disabled because they would erase the TDD commits
+
+## 5. Diagrams in pull requests
+
+A diagram is **required** in the PR description when the change matches any row below. Otherwise it is optional.
+
+| The change… | Diagram | Example in this app |
+|---|---|---|
+| Adds or changes a flow that spans three or more modules or layers | UML sequence diagram | Webhook → GraphQL refetch → upsert |
+| Adds or changes state transitions, or depends on the order of events | UML state diagram | Tag edits racing with `orders/updated` |
+| Adds or changes database models or their relations | ER diagram (or UML class diagram) | `Order` / `LineItem` / `Product` |
+
+- Write diagrams in [Mermaid](https://mermaid.js.org/) inside the PR description. GitHub renders them, and they stay diffable as text
+- Draw only what the PR changes or relies on, not the whole system
+- If the diagram stays true after the PR is merged (e.g. the ER diagram), also put it in the README or the related ADR
+
+Example:
+
+````markdown
+```mermaid
+sequenceDiagram
+  Shopify->>Webhook route: orders/updated (HMAC)
+  Webhook route->>Admin GraphQL: fetch order
+  Webhook route->>Database: upsert if updatedAt is newer
+  Webhook route-->>Shopify: 200
+```
+````
