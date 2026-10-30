@@ -1,7 +1,7 @@
 # 0003. Use webhooks as triggers and refetch orders via GraphQL
 
-- Status: Proposed
-- Date: 
+- Status: Accepted
+- Date: 2026-10-30
 - Issue: #15 (DEC-3)
 
 ## Context
