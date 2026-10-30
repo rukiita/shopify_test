@@ -1,7 +1,7 @@
 # 0004. Write order tags to Shopify as the single source of truth
 
-- Status: Proposed
-- Date: 
+- Status: Accepted
+- Date: 2026-10-30
 - Issue: #16 (DEC-4)
 
 ## Context
