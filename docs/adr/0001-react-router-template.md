@@ -1,7 +1,7 @@
 # 0001. Build on the React Router v7 app template
 
-- Status: Proposed
-- Date: 
+- Status: Accepted
+- Date: 2026-10-30
 - Issue: #13 (DEC-1)
 
 ## Context
