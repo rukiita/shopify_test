@@ -43,7 +43,7 @@ through the inner loop, and goes green when the issue is done.
 | `app/lib/repositories/` (database) | Real reads and writes against a test SQLite database. Prisma is not mocked |
 | Routes (webhooks, loaders, actions) | Run with `SHOPIFY_TESTING` set so `shopifyApp()` uses `testConfig()`. Sign webhook requests with the test secret so `authenticate.webhook` runs for real. Replace only `admin.graphql`, using fixtures |
 | GraphQL queries | Tag queries with `#graphql` and run `npm run graphql-codegen`; a wrong field fails the type check |
-| UI | Follows the outcome of ADR-0002 |
+| UI (Polaris Web Components) | Keep components presentational. Thin jsdom tests that assert what is rendered (text, attributes), not Polaris behaviour; role-based queries are not expected to work. Approach confirmed in Step 1 (ADR-0006) |
 | Configuration and the real store | Not tested. First check a route with `shopify app webhook trigger`, then confirm with real actions in the development store. Document the steps in the README |
 
 ### When the shape of external data is unknown (spike)
