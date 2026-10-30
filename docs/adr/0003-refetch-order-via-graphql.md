@@ -8,6 +8,8 @@
 
 The task asks to store orders in the database based on webhooks. The webhook payload alone cannot fill the CSV.
 
+Background: orders are created and stored by Shopify. This app keeps a copy in its own database; webhooks tell it that an order changed, and the Admin API is how it reads the order (see ADR-0004 for why the copy matters).
+
 - Product tags are not part of the order data ("Need some fields not in order/id/.json" in the task)
 - There are reports that even with protected customer data access approved, webhooks deliver addresses and similar fields as null or redacted
 
@@ -27,6 +29,24 @@ so every webhook needs a fetch regardless. Given that, refetching the whole orde
   and products (`lineItems { product { title tags } }`). The REST-style payload (numeric IDs,
   snake_case) never has to be merged with GraphQL data (GIDs, camelCase), so there is one
   mapping function (`order-mapper`).
+  With option 1, every webhook would go through three steps instead:
+
+  ```ts
+  // 1. Map the REST-style payload
+  const order = mapPayloadToOrder(payload); // total_price, line_items[].product_id (numeric)
+  // 2. Fetch the missing product tags via GraphQL and map that response too
+  const ids = payload.line_items.map((li) => `gid://shopify/Product/${li.product_id}`);
+  const products = mapGraphqlProducts(await fetchProducts(ids));
+  // 3. Merge: match each line item's numeric product_id to a product GID
+  order.lineItems = order.lineItems.map((li) => ({
+    ...li,
+    productTags: products.find((p) => p.id === `gid://shopify/Product/${li.productId}`)?.tags ?? [],
+  }));
+  ```
+
+  Plus a fourth step to refetch and overwrite the customer whenever it arrives redacted.
+  Each step needs its own tests, and there are two kinds of fixtures (payloads and GraphQL responses).
+  None of these steps is hard on its own; the point is that they buy nothing, because the API call happens anyway.
 - **One ingestion path.** Syncing existing orders (#21) must use GraphQL anyway, so webhooks
   and sync share the same fetch → map → upsert path.
 - **Always current.** The refetch returns the order as it is now, so a stale webhook that
