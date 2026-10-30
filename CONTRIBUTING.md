@@ -15,9 +15,15 @@ Branch names follow `issue-{number}-{short-description}`. One branch handles one
 The issue's "Test list" defines the order of work. If something is missing, add it to the issue first.
 Test names follow "Test naming" in [docs/requirements.md](docs/requirements.md).
 
-## 3. Red → Green → Refactor
+## 3. Outer loop, then Red → Green → Refactor
 
-Repeat for each line of the test list.
+### Outer loop: one acceptance test per issue
+
+Start the issue by writing the route-level test from its test list that states the acceptance criterion
+(e.g. "a signed `orders/create` webhook stores the order"). Commit it red. It stays red while you work
+through the inner loop, and goes green when the issue is done.
+
+### Inner loop: one test-list line at a time
 
 | Stage | What to do | Commit |
 |---|---|---|
@@ -27,7 +33,7 @@ Repeat for each line of the test list.
 
 - Commit types: `test` / `feat` / `fix` / `refactor` / `docs` / `chore`
 - End each message with the issue number
-- Red commits only live on the working branch. Only green code reaches `main`
+- Red commits only live on the working branch. Only fully green code reaches `main`
 
 ### How each layer is tested
 
@@ -35,9 +41,10 @@ Repeat for each line of the test list.
 |---|---|
 | `app/lib/domain/` (pure functions) | Inputs and outputs only. No mocks |
 | `app/lib/repositories/` (database) | Real reads and writes against a test SQLite database. Prisma is not mocked |
-| Routes (webhooks, loaders, actions) | Mock only `authenticate.*` and `admin.graphql`; use the real database |
+| Routes (webhooks, loaders, actions) | Run with `SHOPIFY_TESTING` set so `shopifyApp()` uses `testConfig()`. Sign webhook requests with the test secret so `authenticate.webhook` runs for real. Replace only `admin.graphql`, using fixtures |
+| GraphQL queries | Tag queries with `#graphql` and run `npm run graphql-codegen`; a wrong field fails the type check |
 | UI | Follows the outcome of ADR-0002 |
-| Configuration (`shopify.app.toml`, scopes) | Not tested. Verified by hand and documented in the README |
+| Configuration and the real store | Not tested. First check a route with `shopify app webhook trigger`, then confirm with real actions in the development store. Document the steps in the README |
 
 ### When the shape of external data is unknown (spike)
 
@@ -45,7 +52,7 @@ Do not write tests against data whose shape you have not seen, such as GraphQL r
 
 1. Call the API with throwaway code to see the real shape (do not commit this code)
 2. Save the response under `test/fixtures/` (replace names and addresses with test values)
-3. Start TDD with the fixture as input
+3. Start TDD with the fixture as input. The query that produced it is typed by `graphql-codegen`, so the fixture and the types describe the same shape
 
 ## 4. Open a pull request
 
