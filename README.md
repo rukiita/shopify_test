@@ -78,7 +78,69 @@ _(Database setup, running the tests, and the remaining steps are added in Step 8
 
 ## Database design
 
-_(to be written — Step 2, #8)_
+The database is SQLite, managed with Prisma (`prisma/schema.prisma`). Orders, line items and products are copies of Shopify data ([ADR-0004](docs/adr/0004-sync-tags-to-shopify.md)); Shopify stays the source of truth.
+
+```mermaid
+erDiagram
+  Order ||--o{ LineItem : "has (delete cascades)"
+  Product |o--o{ LineItem : "referenced by (delete sets null)"
+
+  Order {
+    String id PK "gid://shopify/Order/..."
+    String shop
+    String name "#1001"
+    Int number
+    Int totalPriceMinor "minor unit: 11.99 USD = 1199"
+    String currencyCode "ISO 4217"
+    String paymentGateways "JSON array"
+    String customerEmail "nullable"
+    String customerFullName "nullable"
+    String customerAddress "nullable"
+    String tags "JSON array"
+    DateTime shopifyCreatedAt
+    DateTime shopifyUpdatedAt
+  }
+  LineItem {
+    String id PK "gid://shopify/LineItem/..."
+    String orderId FK
+    String productId FK "nullable"
+    String title "title at purchase"
+    Int quantity
+  }
+  Product {
+    String id PK "gid://shopify/Product/..."
+    String shop
+    String title
+    String tags "JSON array"
+  }
+```
+
+### Tables
+
+| Table | Holds | Key columns |
+|---|---|---|
+| `Order` | One row per Shopify order, scoped to a shop | `shop`, `name` (`#1001`), `totalPriceMinor` + `currencyCode`, `paymentGateways`, customer email / name / address, `tags`, Shopify's created and updated times |
+| `LineItem` | One row per line item of an order | `orderId`, `productId` (null when the product was deleted or for a custom item), `title` at purchase, `quantity` |
+| `Product` | One row per product referenced by a stored line item | `shop`, current `title`, current `tags` |
+| `Session` | Shopify OAuth sessions, from the app template | Unchanged from the template; not related to the other tables |
+
+### Design choices
+
+**Shopify GIDs are the primary keys** (`gid://shopify/Order/...`, `.../LineItem/...`, `.../Product/...`).
+
+- The webhook carries the GID (`admin_graphql_api_id`), and the GraphQL refetch ([ADR-0003](docs/adr/0003-refetch-order-via-graphql.md)) takes it as is
+- Upserting the same object twice hits the same row, so a repeated webhook creates no duplicate
+- No mapping between an app ID and a Shopify ID is needed
+
+**`Product` is a separate table.** A product is shared by many line items, across orders, and the CSV needs its *current* title and tags (see [Interpretation of the task](#interpretation-of-the-task)). Storing them once per product keeps them consistent. `LineItem.title` keeps the title at purchase as the fallback when the product is gone.
+
+**Delete behaviour.** Deleting an order deletes its line items (`onDelete: Cascade`). Deleting a product keeps its line items and sets their `productId` to null (`onDelete: SetNull`), so the order and the title at purchase stay in the CSV.
+
+**Tags and payment gateways are JSON arrays in String columns**, e.g. `["VIP","wholesale"]`. SQLite has no array type. JSON keeps a value unambiguous whatever characters it contains (a comma-separated string would not), and adding or removing one tag is an array operation. Filtering by tag in SQL is not needed by the current requirements.
+
+**The order total is an integer in the currency's minor unit** (`totalPriceMinor`: 11.99 USD → `1199`, 1500 JPY → `1500`), stored with `currencyCode`. A String column cannot be summed with Prisma's `_sum`, and a Prisma `Decimal` on SQLite is stored as a floating-point REAL, so an integer is the only exact option. Totals are summed per currency. The column is a 32-bit `Int`, which caps one order at about 21 million USD (2.1 billion JPY).
+
+**Indexes.** `Order(shop, shopifyCreatedAt)` serves the order list (a shop's orders, newest first). `LineItem(orderId)`, `LineItem(productId)` and `Product(shop)` are indexed because SQLite does not index foreign keys on its own.
 
 ## Interpretation of the task
 
