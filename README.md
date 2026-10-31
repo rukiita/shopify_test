@@ -34,6 +34,7 @@ _(to be written — Step 2, #8)_
 ## Interpretation of the task
 
 The task leaves some details open. These are the readings this app follows (decided in #18).
+The app uses public distribution, so any store can install it. It is not listed on the Shopify App Store.
 
 ### CSV rows: one row per line item
 
