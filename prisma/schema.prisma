@@ -47,8 +47,9 @@ model Order {
   name             String // "#1001"
   number           Int
   // In the currency's minor unit (11.99 USD -> 1199, 1500 JPY -> 1500), so totals can
-  // be summed exactly. Sum per currency.
-  totalPriceMinor  Int
+  // be summed exactly. Sum per currency. BigInt: a 32-bit Int caps one order at about
+  // 21 million USD, or 2.1 million in a 3-decimal currency such as KWD.
+  totalPriceMinor  BigInt
   currencyCode     String // ISO 4217, e.g. "USD"
   paymentGateways  String // JSON array of gateway names
   customerEmail    String?

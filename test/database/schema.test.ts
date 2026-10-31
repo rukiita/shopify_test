@@ -23,7 +23,7 @@ const orderData = {
   shop: SHOP,
   name: "#1001",
   number: 1,
-  totalPriceMinor: 1199,
+  totalPriceMinor: 1199n,
   currencyCode: "USD",
   paymentGateways: JSON.stringify(["bogus"]),
   customerEmail: "test.buyer@example.com",
@@ -93,6 +93,48 @@ it("BE-7 Whole app : 3. an Order with its LineItems and Products is written and 
         tags: JSON.stringify(["summer", "sale"]),
       },
     },
+  ]);
+});
+
+it("BE-7 Whole app : 3. an Order total above the 32-bit integer range is written and read back", async () => {
+  // 25,000,000.00 USD: above 2,147,483,647 minor units.
+  await db.order.create({
+    data: { ...orderData, totalPriceMinor: 2_500_000_000n },
+  });
+
+  const order = await db.order.findUniqueOrThrow({ where: { id: ORDER_ID } });
+
+  expect(order.totalPriceMinor).toBe(2_500_000_000n);
+});
+
+it("BE-7 Whole app : 3. Order totals are summed per currency exactly, as a bigint", async () => {
+  // 2^53 + 1 cannot be represented as a number, so the sum must stay a bigint.
+  const orders = [
+    {
+      id: "gid://shopify/Order/1",
+      totalPriceMinor: 9_007_199_254_740_992n,
+      currencyCode: "USD",
+    },
+    { id: "gid://shopify/Order/2", totalPriceMinor: 1n, currencyCode: "USD" },
+    {
+      id: "gid://shopify/Order/3",
+      totalPriceMinor: 1500n,
+      currencyCode: "JPY",
+    },
+  ];
+  for (const order of orders) {
+    await db.order.create({ data: { ...orderData, ...order } });
+  }
+
+  const sums = await db.order.groupBy({
+    by: ["currencyCode"],
+    _sum: { totalPriceMinor: true },
+    orderBy: { currencyCode: "asc" },
+  });
+
+  expect(sums).toEqual([
+    { currencyCode: "JPY", _sum: { totalPriceMinor: 1500n } },
+    { currencyCode: "USD", _sum: { totalPriceMinor: 9_007_199_254_740_993n } },
   ]);
 });
 
