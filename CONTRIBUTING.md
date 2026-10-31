@@ -61,6 +61,20 @@ Do not write tests against data whose shape you have not seen, such as GraphQL r
 - Explain **why**, not only what: for a decision PR, state what was verified and how the decision was made
 - Merge with **Create a merge commit**. Squash and rebase merges are disabled because they would erase the TDD commits
 
+### Testing, Risks and Rollback
+
+| Section | Write | Not enough |
+|---|---|---|
+| **Testing** | Who ran what, and the result: `npm test → 42 passed`, `webhook trigger → order stored (checked in Prisma Studio)` | "Tested locally", "should work" |
+| **Risks** | What could break after merging, and the check that would catch it: "stale `orders/updated` overwrites newer data → `BE-1 … 2. ignores a stale webhook`" | A risk with no check, unless it says "no check yet" |
+| **Rollback** | How to disable or undo it, and what a revert does **not** undo | "Revert the PR" when a migration or Shopify-side change is involved |
+
+Rollback notes:
+
+- PRs are merge commits, so a revert needs the parent: `git revert -m 1 <merge commit>`, then open a PR for the revert
+- A revert does not undo a database migration that already ran, data already written, or changes on the Shopify side (order tags written with `tagsAdd`, webhook subscriptions, granted scopes). Say how to handle each one the PR introduces
+- For documentation-only PRs, "revert the merge commit" is enough
+
 ## 5. Diagrams in pull requests
 
 A diagram is **required** in the PR description when the change matches any row below. Otherwise it is optional.
