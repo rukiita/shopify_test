@@ -25,3 +25,4 @@ Instructions for Claude sessions working in this repository.
 
 - Every PR maps to an issue (`Closes #n`). Create the issue first if there is none
 - Do not invent the shape of Shopify API responses. Capture real responses as fixtures first (CONTRIBUTING.md, "spike")
+- For Shopify API and platform questions, use the Shopify Dev MCP (`.mcp.json`) rather than memory
