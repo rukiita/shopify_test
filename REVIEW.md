@@ -7,6 +7,7 @@ How pull requests in this repository are reviewed. Process rules for writing cod
 - **The reviewer is never the agent that wrote the code.** Use a separate agent or a fresh subagent that did not take part in writing the change.
 - Give the reviewer only what a human reviewer would have: the PR diff, the linked issue, this file, `CONTRIBUTING.md` and the ADRs. Not the author's conversation or reasoning.
 - The review informs the author. **Merging is always the author's decision.**
+- **Review before merging.** A finding made after a merge can no longer be fixed in the PR, so it becomes a new issue and PR, which needs its own review.
 
 ### Running it with `/code-review`
 
@@ -67,6 +68,18 @@ Example:
 The author then decides what to do (merge with a follow-up issue, rework, or close).
 
 The count never resets. New commits, a rebase or a new review request on the same PR are still the same round.
+
+A follow-up PR that only fixes findings from a review continues that review. The reviewer checks that the findings are resolved; it does not start a new full review.
+
+### Findings outside the PR's scope
+
+Review the diff against its linked issue. A problem found elsewhere in the app (code or documentation the PR did not change, or a requirement for later work) is outside the scope.
+
+These are guidelines, not hard rules:
+
+- **Act on it now** only if it blocks the next Step, or gets more expensive the longer it waits (e.g. a column type, before any data is written). Open an issue for it.
+- **Otherwise, add it to the backlog issue #70** as a comment and move on. The author triages the backlog when a Step ends: move a finding into a Step, record it in the README "Known limitations", or drop it.
+- An out-of-scope finding does not block the PR under review.
 
 ## 5. Turning recurring findings into rules
 
