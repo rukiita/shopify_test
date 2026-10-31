@@ -126,3 +126,29 @@ it("BE-7 Whole app : 3. deleting an Order deletes its LineItems", async () => {
   expect(await db.lineItem.count()).toBe(0);
   expect(await db.product.count()).toBe(1);
 });
+
+it("BE-7 Whole app : 3. deleting a Product keeps its LineItems without a product", async () => {
+  await createProduct();
+  await db.order.create({
+    data: {
+      ...orderData,
+      lineItems: {
+        create: [
+          {
+            id: "gid://shopify/LineItem/3001",
+            productId: PRODUCT_ID,
+            title: "Test Product",
+            quantity: 1,
+          },
+        ],
+      },
+    },
+  });
+
+  await db.product.delete({ where: { id: PRODUCT_ID } });
+
+  const lineItem = await db.lineItem.findUniqueOrThrow({
+    where: { id: "gid://shopify/LineItem/3001" },
+  });
+  expect(lineItem.productId).toBeNull();
+});
