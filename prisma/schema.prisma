@@ -67,7 +67,8 @@ model LineItem {
   id        String   @id // gid://shopify/LineItem/...
   orderId   String
   order     Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
-  // Null when the product was deleted or the line item is a custom item.
+  // Null when the line item had no product the last time its order was ingested
+  // (a custom item, or a product already deleted in Shopify).
   productId String?
   product   Product? @relation(fields: [productId], references: [id], onDelete: SetNull)
   title     String // Title at purchase

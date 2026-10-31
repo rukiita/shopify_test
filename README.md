@@ -78,7 +78,11 @@ _(Database setup, running the tests, and the remaining steps are added in Step 8
 
 ## Database design
 
-The database is SQLite, managed with Prisma (`prisma/schema.prisma`). Orders, line items and products are copies of Shopify data ([ADR-0004](docs/adr/0004-sync-tags-to-shopify.md)); Shopify stays the source of truth.
+The database is SQLite, managed with Prisma (`prisma/schema.prisma`). Orders, line items and products are copies of Shopify data. Shopify owns the data ([ADR-0004](docs/adr/0004-sync-tags-to-shopify.md)). The copies are written in three ways:
+
+- **Ingestion:** an `orders/create` or `orders/updated` webhook, or the sync of existing orders (#21), refetches the order from the Admin API and upserts the order, its line items and their products. An order is written only if Shopify's `updatedAt` is newer than the stored `shopifyUpdatedAt`, a guard for two fetches of the same order running at the same time ([ADR-0003](docs/adr/0003-refetch-order-via-graphql.md))
+- **Tag edits:** adding or removing an order tag in the app writes to Shopify first, then to the database ([ADR-0004](docs/adr/0004-sync-tags-to-shopify.md))
+- **Deletion:** the app does not subscribe to Shopify's delete webhooks (`orders/delete`, `products/delete`), so deletions in Shopify are not received (see "Delete behaviour" under [Design choices](#design-choices))
 
 ```mermaid
 erDiagram
@@ -117,12 +121,12 @@ erDiagram
 
 ### Tables
 
-| Table | Holds | Key columns |
+| Table | Holds | Notes |
 |---|---|---|
-| `Order` | One row per Shopify order, scoped to a shop | `shop`, `name` (`#1001`), `totalPriceMinor` + `currencyCode`, `paymentGateways`, customer email / name / address, `tags`, Shopify's created and updated times |
-| `LineItem` | One row per line item of an order | `orderId`, `productId` (null when the product was deleted or for a custom item), `title` at purchase, `quantity` |
-| `Product` | One row per product referenced by a stored line item | `shop`, current `title`, current `tags` |
-| `Session` | Shopify OAuth sessions, from the app template | Unchanged from the template; not related to the other tables |
+| `Order` | One row per Shopify order, scoped to a shop | `customerAddress` is one formatted string (shipping, falling back to billing) |
+| `LineItem` | One row per line item of an order | `productId` is null when the line item had no product the last time its order was ingested: a custom item, or a product already deleted in Shopify |
+| `Product` | One row per product seen on an ingested order, scoped to a shop | Title and tags as fetched with an order containing the product, written by each ingestion of such an order. `Product` has no timestamp, so when two such ingestions run at the same time, the older fetch can be written last (#6). Nothing deletes `Product` rows today |
+| `Session` | Shopify OAuth sessions, from the app template | Unchanged from the template; not related to the other tables, so not in the diagram |
 
 ### Design choices
 
@@ -132,15 +136,19 @@ erDiagram
 - Upserting the same object twice hits the same row, so a repeated webhook creates no duplicate
 - No mapping between an app ID and a Shopify ID is needed
 
-**`Product` is a separate table.** A product is shared by many line items, across orders, and the CSV needs its *current* title and tags (see [Interpretation of the task](#interpretation-of-the-task)). Storing them once per product keeps them consistent. `LineItem.title` keeps the title at purchase as the fallback when the product is gone.
+**`Product` is a separate table.** A product is shared by many line items, across orders, and the CSV needs the product's own title and tags rather than what the line item carries (see [Interpretation of the task](#interpretation-of-the-task)). Storing them once per product means every line item of that product shows the same values. They are refreshed whenever an order containing the product is ingested, not when the product itself changes. `LineItem.title` keeps the title at purchase as the fallback when the line item has no product.
 
-**Delete behaviour.** Deleting an order deletes its line items (`onDelete: Cascade`). Deleting a product keeps its line items and sets their `productId` to null (`onDelete: SetNull`), so the order and the title at purchase stay in the CSV.
+**Delete behaviour.** The app subscribes to `orders/create`, `orders/updated`, `app/uninstalled` and `app/scopes_update`, plus the template's product price change event, which only logs and is removed in #64. None of them reports a deleted order or product, so a deletion in Shopify does not delete rows here. `app/uninstalled` deletes only the shop's `Session` rows: orders, with the customer's email, name and address, stay after uninstall. The app does not subscribe to the compliance webhooks (`customers/data_request`, `customers/redact`, `shop/redact`). Shopify requires them for App Store apps, and this app is not listed; whether to handle them is decided in #65.
+
+A product deleted in Shopify is expected to show up only on orders ingested again afterwards. For a deleted product the refetch is expected to return no product (`product: null`), so `productId` becomes null and the CSV falls back to the title at purchase. This is #6's reading of the API and is not yet confirmed with a captured response. Other orders containing that product keep showing its stored title and tags.
+
+The foreign keys define what happens when a row is deleted in the app's database. Deleting an order deletes its line items (`onDelete: Cascade`). Deleting a product keeps its line items and sets their `productId` to null (`onDelete: SetNull`), so the order and the title at purchase stay in the CSV. No code deletes orders or products today; these rules keep the data consistent for any cleanup added later (for example #65).
 
 **Tags and payment gateways are JSON arrays in String columns**, e.g. `["VIP","wholesale"]`. SQLite has no array type. JSON keeps a value unambiguous whatever characters it contains (a comma-separated string would not), and adding or removing one tag is an array operation. Filtering by tag in SQL is not needed by the current requirements.
 
-**The order total is an integer in the currency's minor unit** (`totalPriceMinor`: 11.99 USD → `1199`, 1500 JPY → `1500`), stored with `currencyCode`. A String column cannot be summed with Prisma's `_sum`, and a Prisma `Decimal` on SQLite is stored as a floating-point REAL, so an integer is the only exact option. Totals are summed per currency. The column is a 32-bit `Int`, which caps one order at about 21 million USD (2.1 billion JPY).
+**The order total is an integer in the currency's minor unit** (`totalPriceMinor`: 11.99 USD → `1199`, 1500 JPY → `1500`), stored with `currencyCode`. A String column cannot be summed with Prisma's `_sum`, and a Prisma `Decimal` on SQLite is stored as a floating-point REAL, so the total is kept as an integer. Totals across orders are summed per currency. The column is a 32-bit `Int` for now. Above 2,147,483,647 minor units (about 21 million USD, 2.1 billion JPY, or 2.1 million in a 3-decimal currency such as KWD), SQLite stores the value, but any Prisma query whose result includes that row fails, so the shop's order list and CSV export stop working. #63 changes the column to `BigInt` and blocks order ingestion (#1).
 
-**Indexes.** `Order(shop, shopifyCreatedAt)` serves the order list (a shop's orders, newest first). `LineItem(orderId)`, `LineItem(productId)` and `Product(shop)` are indexed because SQLite does not index foreign keys on its own.
+**Indexes.** `Order(shop, shopifyCreatedAt)` serves the order list (a shop's orders, newest first). `LineItem(orderId)` and `LineItem(productId)` are indexed because SQLite does not index foreign keys on its own. `Product(shop)` is not a foreign key index (`shop` is a plain column), and no query uses it yet. It is for per-shop work on products, such as deleting a shop's data if #65 decides to handle `shop/redact`.
 
 ## Interpretation of the task
 
@@ -155,15 +163,15 @@ This keeps one product title and one set of product tags per row, so the file ca
 
 > **Note:** because order columns repeat, summing *Total price* over all rows counts an order once per line item. Sum distinct orders instead.
 
-### Product title: the current title, falling back to the title at purchase
+### Product title: the product's own title, falling back to the title at purchase
 
-*Product title* is the product's current title (`Product.title`). If the product has been deleted, the title recorded on the line item at purchase (`LineItem.title`) is used.
+*Product title* is the product's own title (`Product.title`), fetched and refreshed the same way as the product tags below. If the line item has no product (`productId` is null; see the `LineItem` row under [Database design](#database-design)), the title recorded on the line item at purchase (`LineItem.title`) is used.
 
 The task lists *Product title* among the fields "not in order/id/.json". The order already carries the title at purchase on each line item, so the field asked for is read as the product's own title.
 
-### Product tags: as of the last time the order was ingested
+### Product tags: as fetched with an order containing the product
 
-Product tags are fetched together with the order whenever the order is ingested (`orders/create`, `orders/updated`, or a sync). The app does not subscribe to `products/update`, so a tag change on a product shows up the next time one of its orders changes.
+Product tags are fetched together with the order whenever an order is ingested (`orders/create`, `orders/updated`, or a sync), and stored once per product. Each ingestion of an order containing the product writes them (see the `Product` row under [Database design](#database-design) for concurrent ingestions), so every line item linked to the product shows the same stored tags, not the tags as of its own order's ingestion. A line item with no product has an empty *Product tags* cell: unlike the title, no tags are recorded at purchase. The app does not update products from product webhooks or events, so a tag change on a product shows up the next time an order containing it is ingested. A product deleted in Shopify keeps its stored title and tags on orders that are not ingested again.
 
 ### Customer address: shipping address, falling back to billing
 
