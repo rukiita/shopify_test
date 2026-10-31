@@ -10,6 +10,16 @@ git switch -c issue-3-add-tag
 
 Branch names follow `issue-{number}-{short-description}`. One branch handles one issue.
 
+Every issue opens with three sections. If one is missing, add it before starting:
+
+| Section | Content |
+|---|---|
+| **Purpose** | Who should be able to do what, concretely: "Merchants can add a tag to an order from the order list" |
+| **Background** | Why it is needed now, and the constraints from users or from how things work today |
+| **Problem to solve** | **Today**: where it hurts. **Change**: what should be different. **Keep**: current behaviour that must not change |
+
+"Keep" is what the change must not break; it often becomes a test or a review check.
+
 ## 2. Check the test list
 
 The issue's "Test list" defines the order of work. If something is missing, add it to the issue first.
