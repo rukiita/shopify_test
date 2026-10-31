@@ -24,32 +24,6 @@ api_version = "2026-10"
   uri = "/webhooks/orders"
   topics = ["orders/create", "orders/updated"]
 
-[events]
-api_version = "2026-10"
-
-  [[events.subscription]]
-  handle = "product-price-change"
-  topic = "Product"
-  actions = [ "update" ]
-  triggers = [ "product.variants.price", "product.variants.compareAtPrice" ]
-  uri = "/webhooks/products/update"
-  query = """
-  query product_variant_price_change($productId: ID!, $variantsId: ID!) {
-    product(id: $productId) {
-      id
-      title
-      status
-    }
-    productVariant(id: $variantsId) {
-      id
-      title
-      price
-      compareAtPrice
-    }
-  }
-  """
-  query_filter = "product.status:'ACTIVE'"
-
 [auth]
 redirect_urls = [ "https://example.com/api/auth" ]
 
