@@ -82,6 +82,7 @@ Do not write tests against data whose shape you have not seen, such as GraphQL r
 ## 4. Open a pull request
 
 - Fill in every item of the PR template
+- In the checklist, an item that does not apply is checked and says why, e.g. `- [x] npm test passes — not applicable, documentation only`. Leave an item unchecked only when it is still to be done
 - Put `Closes #n` in the description
 - Explain **why**, not only what: for a decision PR, state what was verified and how the decision was made
 - Merge with **Create a merge commit**. Squash and rebase merges are disabled because they would erase the TDD commits

@@ -45,6 +45,8 @@ Closes #
 
 ## Checklist
 
+<!-- An item that does not apply: check it and say why ("— not applicable, documentation only"). Unchecked means still to do (CONTRIBUTING.md §4). -->
+
 - [ ] Worked through the issue's test list test-first (Red → Green → Refactor)
 - [ ] Commits are split as `test:` → `feat:` / `fix:` → `refactor:`
 - [ ] `npm test` passes
