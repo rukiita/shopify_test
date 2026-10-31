@@ -45,13 +45,16 @@ Closes #
 
 ## Checklist
 
+<!-- An item that does not apply: check it and end it with "— N/A: <reason>". Unchecked means still to do (CONTRIBUTING.md §4). -->
+
 - [ ] Worked through the issue's test list test-first (Red → Green → Refactor)
 - [ ] Commits are split as `test:` → `feat:` / `fix:` → `refactor:`
 - [ ] `npm test` passes
 - [ ] All acceptance criteria in the issue are met
 - [ ] Testing, Risks and Rollback are filled in
 - [ ] A diagram is included if CONTRIBUTING.md §5 requires one
-- [ ] Code review done (REVIEW.md); security review done if SECURITY_REVIEW.md §1 applies
+- [ ] Code review done (REVIEW.md)
+- [ ] Security review done if SECURITY_REVIEW.md §1 applies
 - [ ] Any new decision is recorded in an ADR or the README
 
 > Merge with **Create a merge commit** (no squash), so the TDD commits stay in the history.
