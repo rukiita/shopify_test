@@ -23,7 +23,7 @@ const orderData = {
   shop: SHOP,
   name: "#1001",
   number: 1,
-  totalPriceMinor: 1199,
+  totalPriceMinor: 1199n,
   currencyCode: "USD",
   paymentGateways: JSON.stringify(["bogus"]),
   customerEmail: "test.buyer@example.com",
