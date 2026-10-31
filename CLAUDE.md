@@ -13,6 +13,7 @@ Instructions for Claude sessions working in this repository.
 - Requirements and test naming: [docs/requirements.md](docs/requirements.md) — `BE-{n} {Feature} : {spec}. {test case}`
 - Design decisions: [docs/adr/](docs/adr/README.md). Do not contradict an Accepted ADR; propose a new ADR instead
 - Code review: [REVIEW.md](REVIEW.md). Never review code you wrote; use a separate agent or a fresh subagent. One fix-and-verify round, then stop and report
+- Security review: [SECURITY_REVIEW.md](SECURITY_REVIEW.md), required when a PR touches the areas in its §1. `/security-review` in a new session, then the checklist for what it does not cover. Same round limit
 
 ## Decisions belong to the author
 
