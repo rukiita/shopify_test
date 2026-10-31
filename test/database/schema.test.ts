@@ -34,6 +34,26 @@ const orderData = {
   shopifyUpdatedAt: new Date("2026-10-31T02:00:00Z"),
 };
 
+// One order with one line item that points to the product.
+const createOrderWithProductLineItem = async () => {
+  await createProduct();
+  await db.order.create({
+    data: {
+      ...orderData,
+      lineItems: {
+        create: [
+          {
+            id: "gid://shopify/LineItem/3001",
+            productId: PRODUCT_ID,
+            title: "Test Product",
+            quantity: 1,
+          },
+        ],
+      },
+    },
+  });
+};
+
 it("BE-7 Whole app : 3. an Order with its LineItems and Products is written and read back", async () => {
   await createProduct();
   await db.order.create({
@@ -104,22 +124,7 @@ it("BE-7 Whole app : 3. a LineItem without a Product is stored", async () => {
 });
 
 it("BE-7 Whole app : 3. deleting an Order deletes its LineItems", async () => {
-  await createProduct();
-  await db.order.create({
-    data: {
-      ...orderData,
-      lineItems: {
-        create: [
-          {
-            id: "gid://shopify/LineItem/3001",
-            productId: PRODUCT_ID,
-            title: "Test Product",
-            quantity: 1,
-          },
-        ],
-      },
-    },
-  });
+  await createOrderWithProductLineItem();
 
   await db.order.delete({ where: { id: ORDER_ID } });
 
@@ -128,22 +133,7 @@ it("BE-7 Whole app : 3. deleting an Order deletes its LineItems", async () => {
 });
 
 it("BE-7 Whole app : 3. deleting a Product keeps its LineItems without a product", async () => {
-  await createProduct();
-  await db.order.create({
-    data: {
-      ...orderData,
-      lineItems: {
-        create: [
-          {
-            id: "gid://shopify/LineItem/3001",
-            productId: PRODUCT_ID,
-            title: "Test Product",
-            quantity: 1,
-          },
-        ],
-      },
-    },
-  });
+  await createOrderWithProductLineItem();
 
   await db.product.delete({ where: { id: PRODUCT_ID } });
 
