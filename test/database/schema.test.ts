@@ -75,3 +75,30 @@ it("BE-7 Whole app : 3. an Order with its LineItems and Products is written and 
     },
   ]);
 });
+
+it("BE-7 Whole app : 3. a LineItem without a Product is stored", async () => {
+  await db.order.create({
+    data: {
+      ...orderData,
+      lineItems: {
+        create: [
+          {
+            id: "gid://shopify/LineItem/3002",
+            productId: null,
+            title: "Custom item",
+            quantity: 1,
+          },
+        ],
+      },
+    },
+  });
+
+  const lineItem = await db.lineItem.findUniqueOrThrow({
+    where: { id: "gid://shopify/LineItem/3002" },
+    include: { product: true },
+  });
+
+  expect(lineItem.productId).toBeNull();
+  expect(lineItem.product).toBeNull();
+  expect(lineItem.title).toBe("Custom item");
+});
