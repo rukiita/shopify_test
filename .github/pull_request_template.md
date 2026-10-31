@@ -51,6 +51,7 @@ Closes #
 - [ ] All acceptance criteria in the issue are met
 - [ ] Testing, Risks and Rollback are filled in
 - [ ] A diagram is included if CONTRIBUTING.md §5 requires one
+- [ ] Code review done (REVIEW.md); security review done if SECURITY_REVIEW.md §1 applies
 - [ ] Any new decision is recorded in an ADR or the README
 
 > Merge with **Create a merge commit** (no squash), so the TDD commits stay in the history.

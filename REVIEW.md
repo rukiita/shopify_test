@@ -22,7 +22,7 @@ Check these first. They are the bugs most likely to slip through in this app.
 | Tests | The outer acceptance test exists. Names follow `docs/requirements.md`. Fixtures come from real responses. Prisma is not mocked. `test:` commits come before the matching `feat:` commits | ADR-0006 |
 | Decisions | The change does not contradict an Accepted ADR. A new decision has an ADR or a README entry | `docs/adr/` |
 
-Security concerns are reviewed separately; the security review guide will be linked here when it is added.
+Security concerns are reviewed separately, using [SECURITY_REVIEW.md](SECURITY_REVIEW.md).
 
 ## 3. How to report a finding
 

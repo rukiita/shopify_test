@@ -61,6 +61,7 @@ Do not write tests against data whose shape you have not seen, such as GraphQL r
 - Explain **why**, not only what: for a decision PR, state what was verified and how the decision was made
 - Merge with **Create a merge commit**. Squash and rebase merges are disabled because they would erase the TDD commits
 - Get a review as described in [REVIEW.md](REVIEW.md): by an agent that did not write the code, with one fix-and-verify round
+- If the PR touches an area in [SECURITY_REVIEW.md](SECURITY_REVIEW.md) §1, also get a security review
 
 ### Testing, Risks and Rollback
 
