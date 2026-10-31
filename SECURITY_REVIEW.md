@@ -1,8 +1,13 @@
 # Security review
 
-How security is reviewed in this repository. It runs alongside the code review in [REVIEW.md](REVIEW.md) and uses the same reviewer rules, finding format and one-round limit.
+How security is reviewed in this repository. It runs alongside the code review in [REVIEW.md](REVIEW.md) and uses the same reviewer rules and one-round limit.
 
 > This is a review guide for contributors. It is not a vulnerability disclosure policy.
+
+A security review has two parts that do not overlap:
+
+1. **`/security-review`** (built into Claude Code) for general vulnerability patterns in the diff
+2. **The checklist in §4** for what `/security-review` does not cover: checks that depend on this app's design, and categories the command excludes by design
 
 ## 1. When it is required
 
@@ -18,57 +23,61 @@ A security review is required when a PR touches any of the following. The PR sta
 | Exports | CSV generation and download |
 | Dependencies | Adding or upgrading packages |
 
-In addition, one full pass over the whole app runs before submission (Step 7).
+In addition, one full pass over the whole app runs before submission (Step 7). `/security-review` only reads the diff, so the full pass uses the §4 checklist over the whole codebase.
 
-## 2. Who reviews
+## 2. Who runs it
 
-Same as [REVIEW.md](REVIEW.md) §1: never the agent that wrote the code, given only the diff, the issue and the documents, and merging stays with the author.
+Same as [REVIEW.md](REVIEW.md) §1: never the agent that wrote the code, and merging stays with the author.
 
-## 3. Checklist
+For `/security-review`, open a **new Claude Code session** for it. Do not run it in the session that wrote the change.
 
-| Area | Check | Why it matters here |
-|---|---|---|
-| Webhook authenticity | Every webhook route calls `authenticate.webhook(request)` before reading the body. No code path processes an unverified request | Anyone can POST to a public webhook URL; an unverified request could write fake orders |
-| Admin authentication | Every loader and action under `app/` calls `authenticate.admin(request)`. Side effects happen only in actions, never in loaders (GET) | A GET with side effects can be triggered by a link |
-| Shop isolation | The shop comes from the authenticated session or the verified webhook, never from a query parameter, form field or request body. Every query filters by that shop | Trusting a client-supplied shop would expose other merchants' orders |
-| Customer data in logs and errors | Logs, error messages and responses contain no names, emails, addresses, request bodies or access tokens. Error responses do not include stack traces | Protected customer data must not leak through logs or error pages |
-| Customer data at rest | Only the fields the app needs are stored. A shop's data is deleted on `app/uninstalled` | Minimises what can leak; required by the protected customer data terms |
-| Fixtures and samples | Files in `test/fixtures/` and `samples/` contain only test names, emails and addresses | Fixtures are captured from real responses (CONTRIBUTING.md, "spike") |
-| Secrets | No API secret, access token or `.env` file is committed. `.env` is in `.gitignore` | A leaked secret lets anyone forge webhooks or call the Admin API |
-| Scopes | Scopes stay at `read_orders`, `read_products`, `write_orders` (ADR-0004). Any addition is justified in the PR | Least privilege; merchants grant these at install |
-| GraphQL input | User input reaches GraphQL only through variables, never through string concatenation | Prevents query injection |
-| Tag input | Tags go through `normalizeTag` (trim, length, empty, duplicate) before any API call | Unvalidated input reaches the merchant's Shopify data |
-| CSV formula injection | Cells starting with `=`, `+`, `-`, `@`, tab or carriage return cannot run as formulas when opened in a spreadsheet | Tags and customer fields are user-controlled and end up in Excel |
-| Dependencies | `npm audit --audit-level=high` reports no high or critical issues, or each one is explained in the PR | Known vulnerabilities in dependencies |
+## 3. Step 1: `/security-review`
 
-## 4. Tools
+Run `/security-review` on the PR branch. It covers, among others:
 
-Run these in every security review. They are minimum checks; a clean result does not replace reading the diff.
+- Injection (including into queries), XSS, path traversal
+- Authentication and authorization bypass, session flaws
+- Hardcoded secrets, weak cryptography
+- Sensitive data and PII in logs, responses or debug output
 
-```bash
-# Dependencies with known high or critical vulnerabilities
-npm audit --audit-level=high
+These are **not** repeated in §4. Use its report as the findings for this part.
 
-# Committed secrets (Shopify access tokens, app secrets). This file is excluded because it contains the pattern
-git grep -nE "(shpat_|shpss_|SHOPIFY_API_SECRET=.+)" -- . ':!SECURITY_REVIEW.md'
+## 4. Step 2: checklist for what `/security-review` does not cover
 
-# Logging that may contain customer data or request bodies
-git grep -nE "console\.(log|error|warn)\(.*(email|address|name|request\.body|payload)" -- app
-```
+### Checks that depend on this app's design
 
-`git grep` exits with status 1 when nothing is found, which is the expected result.
+`/security-review` looks for auth and authorization flaws in general, but it does not know where this app is supposed to authenticate or where the shop must come from.
+
+| Check | Where to look |
+|---|---|
+| Every webhook route calls `authenticate.webhook(request)` before the body is used | `app/routes/webhooks.*` |
+| Every loader and action under `app/` calls `authenticate.admin(request)`. Side effects happen only in actions, never in loaders (GET) | `app/routes/app.*` |
+| The shop comes from the authenticated session or the verified webhook, never from a query parameter, form field or body. Every query filters by that shop | Repositories and every caller |
+
+### Categories `/security-review` excludes by design
+
+The command skips test files, documentation, missing hardening, data retention and outdated dependencies. These still matter here:
+
+| Check | Why it matters here |
+|---|---|
+| Only the customer fields the app needs are stored, and a shop's data is deleted on `app/uninstalled` | Protected customer data terms; less to leak |
+| `test/fixtures/` and `samples/` contain only test names, emails and addresses | Fixtures are captured from real responses (CONTRIBUTING.md, "spike"), and test files are outside `/security-review` |
+| Scopes stay at `read_orders`, `read_products`, `write_orders` (ADR-0004). Any addition is justified in the PR | Least privilege; merchants grant these at install |
+| CSV cells starting with `=`, `+`, `-`, `@`, tab or carriage return cannot run as formulas in a spreadsheet | Tags and customer fields are user-controlled and end up in Excel |
+| `npm audit --audit-level=high` reports no high or critical issues, or each one is explained in the PR | Dependency vulnerabilities are outside `/security-review` |
 
 ## 5. Reporting
 
-Use [REVIEW.md](REVIEW.md) §3 for each finding, with **Security** in front of the severity (e.g. **Security · Blocker**).
-
+- `/security-review` findings are used as reported. Map its severity: **High → Blocker**, **Medium → Major**, **Low → Minor**, and prefix with **Security** (e.g. **Security · Blocker**)
+- Checklist findings use the [REVIEW.md](REVIEW.md) §3 format with the same **Security** prefix
 - Anything that exposes customer data, lets an unauthenticated request change data, or leaks a secret is a **Blocker**
-- The fix-and-verify limit in [REVIEW.md](REVIEW.md) §4 applies: one round, then stop and report
+- The fix-and-verify limit in [REVIEW.md](REVIEW.md) §4 covers both parts together: one round, then stop and report
 
 If a finding cannot be fixed within the task (for example, the mandatory compliance webhooks for App Store distribution), record it in the README under "Known limitations / Production considerations".
 
 ## References
 
+- https://github.com/anthropics/claude-code-security-review (`/security-review` command definition and its exclusions)
 - https://shopify.dev/docs/apps/build/webhooks (webhook verification)
 - https://shopify.dev/docs/apps/launch/protected-customer-data (protected customer data)
 - https://owasp.org/www-community/attacks/CSV_Injection (CSV formula injection)

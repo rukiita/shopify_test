@@ -14,15 +14,14 @@ Check these first. They are the bugs most likely to slip through in this app.
 
 | Area | Look for | Related |
 |---|---|---|
-| Webhook ingestion | The HMAC signature is verified before the body is used. The same delivery twice creates no duplicates. A stale `orders/updated` cannot overwrite newer data (`updatedAt` check). A failed GraphQL fetch returns non-2xx so Shopify retries | BE-1, ADR-0003 |
+| Webhook ingestion | The same delivery twice creates no duplicates. A stale `orders/updated` cannot overwrite newer data (`updatedAt` check). A failed GraphQL fetch returns non-2xx so Shopify retries | BE-1, ADR-0003 |
 | Data from Shopify | `null` is handled where Shopify allows it: `customer`, `shippingAddress`, `billingAddress`, `lineItem.product`. GIDs and numeric IDs are not mixed. Money stays a string or decimal, never a float | BE-1, BE-6 |
-| Shop isolation | Every database read and write is scoped to the authenticated shop. No query can return another shop's orders | BE-2, BE-5 |
 | Tag edits | `tagsAdd` / `tagsRemove`, never `orderUpdate`. Shopify is written first; the database changes only on success. `userErrors` leave the database unchanged. Input goes through `normalizeTag` | BE-3, BE-4, ADR-0004 |
 | CSV | RFC 4180 escaping. Column order matches the CSV template plus Product title / Product tags. Format follows "Interpretation of the task" in the README | BE-5, README |
 | Tests | The outer acceptance test exists. Names follow `docs/requirements.md`. Fixtures come from real responses. Prisma is not mocked. `test:` commits come before the matching `feat:` commits | ADR-0006 |
 | Decisions | The change does not contradict an Accepted ADR. A new decision has an ADR or a README entry | `docs/adr/` |
 
-Security concerns are reviewed separately, using [SECURITY_REVIEW.md](SECURITY_REVIEW.md).
+Security is reviewed separately with [SECURITY_REVIEW.md](SECURITY_REVIEW.md): webhook signature verification, shop isolation, customer data and the other security checks live there, not here.
 
 ## 3. How to report a finding
 
