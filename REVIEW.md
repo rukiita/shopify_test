@@ -8,6 +8,15 @@ How pull requests in this repository are reviewed. Process rules for writing cod
 - Give the reviewer only what a human reviewer would have: the PR diff, the linked issue, this file, `CONTRIBUTING.md` and the ADRs. Not the author's conversation or reasoning.
 - The review informs the author. **Merging is always the author's decision.**
 
+### Running it with `/code-review`
+
+1. Open a **new Claude Code session** (not the one that wrote the change) and run `/code-review <PR number>`.
+2. `/code-review` looks for general correctness bugs. It does not read this file, but it follows `CLAUDE.md`, which tells it to read §2–§3 here. So the same run also checks the focus areas in §2 and reports in the §3 format.
+3. Do **not** pass `--fix`. The author fixes (§4); a reviewer that fixes its own findings would also be verifying its own fix.
+4. `/code-review` gives a category but no severity. The reviewer assigns one per §3.
+
+> `REVIEW.md` is also the file the managed Code Review service on GitHub reads. This project does not use that service. If it is adopted later, move the process rules (§1, §4, §5) to `CONTRIBUTING.md` so that this file holds only review criteria.
+
 ## 2. What to look for
 
 Check these first. They are the bugs most likely to slip through in this app.
