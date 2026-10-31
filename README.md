@@ -78,7 +78,7 @@ _(Database setup, running the tests, and the remaining steps are added in Step 8
 
 ## Database design
 
-The database is SQLite, managed with Prisma (`prisma/schema.prisma`). Orders, line items and products are copies of Shopify data ([ADR-0004](docs/adr/0004-sync-tags-to-shopify.md)); Shopify stays the source of truth.
+The database is SQLite, managed with Prisma (`prisma/schema.prisma`). Orders, line items and products are copies of Shopify data, refreshed from the Admin API whenever an order arrives through `orders/create` or `orders/updated` ([ADR-0003](docs/adr/0003-refetch-order-via-graphql.md), [ADR-0004](docs/adr/0004-sync-tags-to-shopify.md)). Shopify owns the data; the app does not receive deletions (see "Delete behaviour" under [Design choices](#design-choices)).
 
 ```mermaid
 erDiagram
@@ -117,12 +117,12 @@ erDiagram
 
 ### Tables
 
-| Table | Holds | Key columns |
+| Table | Holds | Notes |
 |---|---|---|
-| `Order` | One row per Shopify order, scoped to a shop | `shop`, `name` (`#1001`), `totalPriceMinor` + `currencyCode`, `paymentGateways`, customer email / name / address, `tags`, Shopify's created and updated times |
-| `LineItem` | One row per line item of an order | `orderId`, `productId` (null when the product was deleted or for a custom item), `title` at purchase, `quantity` |
-| `Product` | One row per product referenced by a stored line item | `shop`, current `title`, current `tags` |
-| `Session` | Shopify OAuth sessions, from the app template | Unchanged from the template; not related to the other tables |
+| `Order` | One row per Shopify order, scoped to a shop | `customerAddress` is one formatted string (shipping, falling back to billing) |
+| `LineItem` | One row per line item of an order | `productId` is null for a custom item, or when the product was already deleted when the order was ingested |
+| `Product` | One row per product seen on an ingested order, scoped to a shop | Title and tags as of the last time an order containing the product was ingested. A row stays after no line item references it |
+| `Session` | Shopify OAuth sessions, from the app template | Unchanged from the template; not related to the other tables, so not in the diagram |
 
 ### Design choices
 
@@ -132,15 +132,17 @@ erDiagram
 - Upserting the same object twice hits the same row, so a repeated webhook creates no duplicate
 - No mapping between an app ID and a Shopify ID is needed
 
-**`Product` is a separate table.** A product is shared by many line items, across orders, and the CSV needs its *current* title and tags (see [Interpretation of the task](#interpretation-of-the-task)). Storing them once per product keeps them consistent. `LineItem.title` keeps the title at purchase as the fallback when the product is gone.
+**`Product` is a separate table.** A product is shared by many line items, across orders, and the CSV needs the product's own title and tags rather than what the line item carries (see [Interpretation of the task](#interpretation-of-the-task)). Storing them once per product means every line item of that product shows the same values. They are refreshed whenever an order containing the product is ingested, not when the product itself changes. `LineItem.title` keeps the title at purchase as the fallback when the product is gone.
 
-**Delete behaviour.** Deleting an order deletes its line items (`onDelete: Cascade`). Deleting a product keeps its line items and sets their `productId` to null (`onDelete: SetNull`), so the order and the title at purchase stay in the CSV.
+**Delete behaviour.** The app subscribes only to `orders/create` and `orders/updated`. Deleting an order or a product in Shopify is not reflected in the app's database: the rows stay until something in the app deletes them.
+
+The foreign keys define what happens when a row is deleted in the app's database. Deleting an order deletes its line items (`onDelete: Cascade`). Deleting a product keeps its line items and sets their `productId` to null (`onDelete: SetNull`), so the order and the title at purchase stay in the CSV.
 
 **Tags and payment gateways are JSON arrays in String columns**, e.g. `["VIP","wholesale"]`. SQLite has no array type. JSON keeps a value unambiguous whatever characters it contains (a comma-separated string would not), and adding or removing one tag is an array operation. Filtering by tag in SQL is not needed by the current requirements.
 
-**The order total is an integer in the currency's minor unit** (`totalPriceMinor`: 11.99 USD → `1199`, 1500 JPY → `1500`), stored with `currencyCode`. A String column cannot be summed with Prisma's `_sum`, and a Prisma `Decimal` on SQLite is stored as a floating-point REAL, so an integer is the only exact option. Totals are summed per currency. The column is a 32-bit `Int`, which caps one order at about 21 million USD (2.1 billion JPY).
+**The order total is an integer in the currency's minor unit** (`totalPriceMinor`: 11.99 USD → `1199`, 1500 JPY → `1500`), stored with `currencyCode`. A String column cannot be summed with Prisma's `_sum`, and a Prisma `Decimal` on SQLite is stored as a floating-point REAL, so the total is kept as an integer. Totals are summed per currency. The column is a 32-bit `Int` rather than a `BigInt`, which caps one order at about 21 million USD (2.1 billion JPY). SQLite still stores a larger value, but Prisma then fails to read the row back, so the order ingestion has to check the range before writing.
 
-**Indexes.** `Order(shop, shopifyCreatedAt)` serves the order list (a shop's orders, newest first). `LineItem(orderId)`, `LineItem(productId)` and `Product(shop)` are indexed because SQLite does not index foreign keys on its own.
+**Indexes.** `Order(shop, shopifyCreatedAt)` serves the order list (a shop's orders, newest first). `LineItem(orderId)` and `LineItem(productId)` are indexed because SQLite does not index foreign keys on its own. `Product(shop)` finds a shop's products without a full table scan; `shop` is a plain column, not a foreign key.
 
 ## Interpretation of the task
 
