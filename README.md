@@ -94,7 +94,7 @@ erDiagram
     String shop
     String name "#1001"
     Int number
-    Int totalPriceMinor "minor unit: 11.99 USD = 1199"
+    BigInt totalPriceMinor "minor unit: 11.99 USD = 1199"
     String currencyCode "ISO 4217"
     String paymentGateways "JSON array"
     String customerEmail "nullable"
@@ -146,7 +146,7 @@ The foreign keys define what happens when a row is deleted in the app's database
 
 **Tags and payment gateways are JSON arrays in String columns**, e.g. `["VIP","wholesale"]`. SQLite has no array type. JSON keeps a value unambiguous whatever characters it contains (a comma-separated string would not), and adding or removing one tag is an array operation. Filtering by tag in SQL is not needed by the current requirements.
 
-**The order total is an integer in the currency's minor unit** (`totalPriceMinor`: 11.99 USD → `1199`, 1500 JPY → `1500`), stored with `currencyCode`. A String column cannot be summed with Prisma's `_sum`, and a Prisma `Decimal` on SQLite is stored as a floating-point REAL, so the total is kept as an integer. Totals across orders are summed per currency. The column is a 32-bit `Int` for now. Above 2,147,483,647 minor units (about 21 million USD, 2.1 billion JPY, or 2.1 million in a 3-decimal currency such as KWD), SQLite stores the value, but any Prisma query whose result includes that row fails, so the shop's order list and CSV export stop working. #63 changes the column to `BigInt` and blocks order ingestion (#1).
+**The order total is an integer in the currency's minor unit** (`totalPriceMinor`: 11.99 USD → `1199`, 1500 JPY → `1500`), stored with `currencyCode`. A String column cannot be summed with Prisma's `_sum`, and a Prisma `Decimal` on SQLite is stored as a floating-point REAL, so the total is kept as an integer. Totals across orders are summed per currency. The column is a `BigInt`, which Prisma returns as a JavaScript `bigint`. A 32-bit `Int` would cap one order at 2,147,483,647 minor units (about 21 million USD, or 2.1 million in a 3-decimal currency such as KWD), and one larger order would make every query that returns its row fail.
 
 **Indexes.** `Order(shop, shopifyCreatedAt)` serves the order list (a shop's orders, newest first). `LineItem(orderId)` and `LineItem(productId)` are indexed because SQLite does not index foreign keys on its own. `Product(shop)` is not a foreign key index (`shop` is a plain column), and no query uses it yet. It is for deleting a shop's products, on uninstall (#1) or on `shop/redact` (#65).
 
