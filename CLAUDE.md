@@ -12,6 +12,7 @@ Instructions for Claude sessions working in this repository.
 - Process: [CONTRIBUTING.md](CONTRIBUTING.md) — issue-first, TDD (Red → Green → Refactor), commit types, merge commits only, diagrams for complex PRs (§5)
 - Requirements and test naming: [docs/requirements.md](docs/requirements.md) — `BE-{n} {Feature} : {spec}. {test case}`
 - Design decisions: [docs/adr/](docs/adr/README.md). Do not contradict an Accepted ADR; propose a new ADR instead
+- Code review: [REVIEW.md](REVIEW.md). Never review code you wrote; use a separate agent or a fresh subagent. One fix-and-verify round, then stop and report
 
 ## Decisions belong to the author
 
