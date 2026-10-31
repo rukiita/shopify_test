@@ -4,10 +4,11 @@ import {
   AppDistribution,
   shopifyApp,
 } from "@shopify/shopify-app-react-router/server";
+import { testConfig } from "@shopify/shopify-app-react-router/test-helpers";
 import { PrismaSessionStorage } from "@shopify/shopify-app-session-storage-prisma";
 import prisma from "./db.server";
 
-const shopify = shopifyApp({
+const config = {
   apiKey: process.env.SHOPIFY_API_KEY,
   apiSecretKey: process.env.SHOPIFY_API_SECRET || "",
   apiVersion: ApiVersion.October26,
@@ -22,7 +23,26 @@ const shopify = shopifyApp({
   ...(process.env.SHOP_CUSTOM_DOMAIN
     ? { customShopDomains: [process.env.SHOP_CUSTOM_DOMAIN] }
     : {}),
-});
+};
+
+// Tests run with the fixed key, secret and app URL from testConfig() (ADR-0006).
+// NODE_ENV is checked too: the test secret is public, so a stray SHOPIFY_TESTING
+// in production must not make the app accept webhooks signed with it.
+// Sessions stay in Prisma, so route tests read and write the test database.
+const isTesting =
+  Boolean(process.env.SHOPIFY_TESTING) && process.env.NODE_ENV === "test";
+
+const shopify = shopifyApp(
+  isTesting
+    ? {
+        ...config,
+        ...testConfig({
+          sessionStorage: config.sessionStorage,
+          future: config.future,
+        }),
+      }
+    : config,
+);
 
 export default shopify;
 export const apiVersion = ApiVersion.October26;

@@ -45,6 +45,21 @@ through the inner loop, and goes green when the issue is done.
 - End each message with the issue number
 - Red commits only live on the working branch. Only fully green code reaches `main`
 
+### Running the tests
+
+```bash
+npm test             # all tests once
+npm run test:watch   # re-run on change
+npm run typecheck    # regenerates GraphQL types, then runs tsc
+```
+
+- Tests live under `test/`, not next to the code: files in `app/routes/` would be picked up as routes
+- Each run rebuilds `prisma/test.sqlite` from `prisma/migrations/`. A test file that touches the database calls
+  `beforeEach(resetDatabase)` from `test/helpers/database.ts`
+- Route tests build webhook requests with `signedWebhookRequest()` from `test/helpers/webhook.ts`
+- UI tests start with `// @vitest-environment jsdom`; the rest run in Node
+- Captured API responses go in `test/fixtures/`
+
 ### How each layer is tested
 
 | Target | How |
@@ -53,7 +68,7 @@ through the inner loop, and goes green when the issue is done.
 | `app/lib/repositories/` (database) | Real reads and writes against a test SQLite database. Prisma is not mocked |
 | Routes (webhooks, loaders, actions) | Run with `SHOPIFY_TESTING` set so `shopifyApp()` uses `testConfig()`. Sign webhook requests with the test secret so `authenticate.webhook` runs for real. Replace only `admin.graphql`, using fixtures |
 | GraphQL queries | Tag queries with `#graphql` and run `npm run graphql-codegen`; a wrong field fails the type check |
-| UI (Polaris Web Components) | Keep components presentational. Thin jsdom tests that assert what is rendered (text, attributes), not Polaris behaviour; role-based queries are not expected to work. Approach confirmed in Step 1 (ADR-0006) |
+| UI (Polaris Web Components) | Keep components presentational. Thin jsdom tests that assert what is rendered (text, attributes), not Polaris behaviour; role-based queries do not work. Confirmed in Step 1 (ADR-0006, `test/ui/s-table.test.tsx`) |
 | Configuration and the real store | Not tested. First check a route with `shopify app webhook trigger`, then confirm with real actions in the development store. Document the steps in the README |
 
 ### When the shape of external data is unknown (spike)
