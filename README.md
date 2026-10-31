@@ -29,7 +29,7 @@ _(to be written — Step 8, #9)_
 
 ### Prerequisites
 
-- Node.js 22.12 or later
+- Node.js **24.22.1** (pinned in `.nvmrc`; with nvm, run `nvm use`). The app also declares `>=22.12` in `package.json`, and `.npmrc` makes `npm` refuse older versions, but 24.22.1 is the version it was built and tested with
 - A Shopify Partner account with an organization ([partners.shopify.com](https://partners.shopify.com)). Without an organization, Shopify CLI stops with "No Organization found"
 
 Shopify CLI is a project dependency (`@shopify/cli` in `devDependencies`), so no global install is needed. Run it through the npm scripts or `npx shopify`.
@@ -37,7 +37,8 @@ Shopify CLI is a project dependency (`@shopify/cli` in `devDependencies`), so no
 ### 1. Install dependencies and connect your own app
 
 ```bash
-npm install
+nvm use               # Node.js version from .nvmrc
+npm ci                # install exactly the versions in package-lock.json
 npm run config:link   # create or select an app in your own organization
 ```
 
