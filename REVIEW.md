@@ -58,7 +58,7 @@ Example:
 1. The reviewer reports findings.
 2. The author fixes **once**.
 3. The reviewer re-verifies **once**, checking each finding: resolved / not resolved, with evidence.
-4. If every Blocker and Major is resolved, the review is complete. Stop.
+4. If every Blocker and Major is resolved, the review is complete. Stop. The author checks the code review item in the PR checklist.
 5. If not, **stop anyway.** Do not start another round. Report:
    - the fixes that were tried
    - the verification result for each finding
