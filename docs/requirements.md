@@ -88,7 +88,7 @@ it("BE-3 Add tag : 1. trims surrounding whitespace", ...);
 | 4 | Remove tag | 1 = a tag can be removed from an order |
 | 5 | CSV export | 1 = orders can be exported to a CSV file / 2–10 = CSV template columns in order (2 = Order id … 10 = Created at) / 11 = Product title / 12 = Product tags |
 | 6 | Fields not in order JSON | 1 = Product title is fetched and stored / 2 = Product tags are fetched and stored |
-| 7 | Whole app | Cross-cutting tests only (no direct basis in the task). 1 = app lifecycle webhooks (e.g. app/uninstalled) / 2 = UI test setup |
+| 7 | Whole app | Cross-cutting tests only (no direct basis in the task). 1 = app lifecycle webhooks (e.g. app/uninstalled) / 2 = UI test setup / 3 = database schema (models, relations, delete behaviour) |
 
 Tests without a direct basis in the task (signature verification, idempotency, escaping, etc.) use the nearest spec number.
 Example: signature verification → `BE-1 Webhook ingestion : 1. …`.
