@@ -32,3 +32,57 @@ model Session {
   refreshToken        String?
   refreshTokenExpires DateTime?
 }
+
+// Orders, line items and products are copies of Shopify data (ADR-0003, ADR-0004).
+// Primary keys are Shopify GIDs, so a refetch can use them directly and an upsert of
+// the same object is idempotent.
+//
+// SQLite has no array type. List values (tags, payment gateways) are stored as a JSON
+// array in a String column, e.g. ["VIP","wholesale"], so a value is never ambiguous
+// whatever characters it contains.
+
+model Order {
+  id               String     @id // gid://shopify/Order/...
+  shop             String
+  name             String // "#1001"
+  number           Int
+  // In the currency's minor unit (11.99 USD -> 1199, 1500 JPY -> 1500), so totals can
+  // be summed exactly. Sum per currency.
+  totalPriceMinor  Int
+  currencyCode     String // ISO 4217, e.g. "USD"
+  paymentGateways  String // JSON array of gateway names
+  customerEmail    String?
+  customerFullName String?
+  customerAddress  String?
+  tags             String // JSON array of tags
+  shopifyCreatedAt DateTime
+  shopifyUpdatedAt DateTime
+  lineItems        LineItem[]
+
+  // The order list shows a shop's orders, newest first.
+  @@index([shop, shopifyCreatedAt])
+}
+
+model LineItem {
+  id        String   @id // gid://shopify/LineItem/...
+  orderId   String
+  order     Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  // Null when the product was deleted or the line item is a custom item.
+  productId String?
+  product   Product? @relation(fields: [productId], references: [id], onDelete: SetNull)
+  title     String // Title at purchase
+  quantity  Int
+
+  @@index([orderId])
+  @@index([productId])
+}
+
+model Product {
+  id        String     @id // gid://shopify/Product/...
+  shop      String
+  title     String
+  tags      String // JSON array of tags
+  lineItems LineItem[]
+
+  @@index([shop])
+}
