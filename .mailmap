@@ -1,0 +1,4 @@
+# Map every author identity in the history to one canonical name and email.
+# Used by git log (%aN, %aE), git shortlog and git blame. GitHub's web UI ignores this file.
+lukiita <160990087+rukiita@users.noreply.github.com> Teruki Kanehira <160990087+rukiita@users.noreply.github.com>
+lukiita <160990087+rukiita@users.noreply.github.com> <lukiitaengineer@gmail.com>
