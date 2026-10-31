@@ -6,6 +6,10 @@ Closes #
 
 -
 
+## Diagram
+
+<!-- Required for complex changes (see CONTRIBUTING.md §5): a flow across 3+ modules, state transitions / event ordering, or database models. Use Mermaid. Otherwise write "Not required". -->
+
 ## Why
 
 <!-- The reasoning behind the change. For a decision PR: what was verified and how the decision was made -->
@@ -38,10 +42,6 @@ Closes #
 ## Related ADRs
 
 - None / ADR-000n
-
-## Diagram
-
-<!-- Required for complex changes (see CONTRIBUTING.md §5): a flow across 3+ modules, state transitions / event ordering, or database models. Use Mermaid. Otherwise write "Not required". -->
 
 ## Checklist
 
