@@ -96,6 +96,17 @@ it("BE-7 Whole app : 3. an Order with its LineItems and Products is written and 
   ]);
 });
 
+it("BE-7 Whole app : 3. an Order total above the 32-bit integer range is written and read back", async () => {
+  // 25,000,000.00 USD: above 2,147,483,647 minor units.
+  await db.order.create({
+    data: { ...orderData, totalPriceMinor: 2_500_000_000 },
+  });
+
+  const order = await db.order.findUniqueOrThrow({ where: { id: ORDER_ID } });
+
+  expect(order.totalPriceMinor).toBe(2_500_000_000n);
+});
+
 it("BE-7 Whole app : 3. a LineItem without a Product is stored", async () => {
   await db.order.create({
     data: {
