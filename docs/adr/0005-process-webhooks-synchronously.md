@@ -53,6 +53,13 @@ The failure is in the database, not in processing within the request.
 The likely cause: Prisma opens several SQLite connections (2 × CPUs + 1 by default), and transactions on different connections wait on each other's locks until Prisma's timeouts end them.
 With one connection (`connection_limit=1` in the database URL), the same calls wait for the connection instead: 20 at once all succeeded in 0.25 s, and 10 orders with 250 line items each in 1.3 s.
 
+After #77 (one database connection), the same burst on 2026-11-01: 10 orders created at once, then the same 10 tagged at once, 39 deliveries within 8 seconds.
+Every delivery returned 200 with no database errors, and every order and tag was stored.
+Time per delivery, measured in the server: median 0.55 s, 90th percentile 1.28 s, max 1.50 s.
+Right after a restart (7 orders and 26 deliveries, including Vite's first compile): 90th percentile 1.97 s, max 2.11 s.
+The revisit trigger below is the Dev Dashboard's 90th percentile over time, not one burst.
+Deliveries in a burst take longer than one delivery alone (0.5 s). Waiting for the connection does not explain it alone: one write of these orders (2 line items) takes about 10 ms. The cause was not measured.
+
 ## Decision
 
 Option 1. To hold under bursts, it needs the database writes serialized, which #77 does.
