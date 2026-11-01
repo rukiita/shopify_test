@@ -74,13 +74,15 @@ Development stores use the Bogus Gateway for payments by default.
 2. Add products to the cart and check out with test data, e.g. email `test.buyer+1@example.com`, a US address
 3. Pay with card number `1`, any future expiry date, any 3-digit security code, and name on card `Bogus Gateway`
 
+The `orders/create` webhook stores the order while `npm run dev` is running. To see it, open the development database with `npx prisma studio` (tables `Order`, `LineItem`, `Product`). Editing the order in the Shopify admin (for example, adding a tag) sends `orders/updated`, which updates the stored copy.
+
 _(Database setup, running the tests, and the remaining steps are added in Step 8.)_
 
 ## Database design
 
 The database is SQLite, managed with Prisma (`prisma/schema.prisma`). Orders, line items and products are copies of Shopify data. Shopify owns the data ([ADR-0004](docs/adr/0004-sync-tags-to-shopify.md)). The copies are written in three ways:
 
-- **Ingestion:** an `orders/create` or `orders/updated` webhook, or the sync of existing orders (#21), refetches the order from the Admin API and upserts the order, its line items and their products. An order is written only if Shopify's `updatedAt` is newer than the stored `shopifyUpdatedAt`, a guard for two fetches of the same order running at the same time ([ADR-0003](docs/adr/0003-refetch-order-via-graphql.md))
+- **Ingestion:** an `orders/create` or `orders/updated` webhook, or the sync of existing orders (#21), refetches the order from the Admin API and upserts the order, its line items and their products. An order and its line items are written only if Shopify's `updatedAt` is newer than the stored `shopifyUpdatedAt`, a guard for two fetches of the same order running at the same time ([ADR-0003](docs/adr/0003-refetch-order-via-graphql.md)). Products are written on every ingestion
 - **Tag edits:** adding or removing an order tag in the app writes to Shopify first, then to the database ([ADR-0004](docs/adr/0004-sync-tags-to-shopify.md))
 - **Deletion:** the app does not subscribe to Shopify's delete webhooks (`orders/delete`, `products/delete`), so deletions in Shopify are not received (see "Delete behaviour" under [Design choices](#design-choices))
 
@@ -125,7 +127,7 @@ erDiagram
 |---|---|---|
 | `Order` | One row per Shopify order, scoped to a shop | `customerAddress` is one formatted string (shipping, falling back to billing) |
 | `LineItem` | One row per line item of an order | `productId` is null when the line item had no product the last time its order was ingested: a custom item, or a product already deleted in Shopify |
-| `Product` | One row per product seen on an ingested order, scoped to a shop | Title and tags as fetched with an order containing the product, written by each ingestion of such an order. `Product` has no timestamp, so when two such ingestions run at the same time, the older fetch can be written last (#6). Nothing deletes `Product` rows today |
+| `Product` | One row per product seen on an ingested order, scoped to a shop | Title and tags as fetched with an order containing the product, written by each ingestion of such an order. `Product` has no timestamp, so when two such ingestions run at the same time, the older fetch can be written last (#6). `app/uninstalled` deletes a shop's products |
 | `Session` | Shopify OAuth sessions, from the app template | Unchanged from the template; not related to the other tables, so not in the diagram |
 
 ### Design choices
@@ -138,17 +140,17 @@ erDiagram
 
 **`Product` is a separate table.** A product is shared by many line items, across orders, and the CSV needs the product's own title and tags rather than what the line item carries (see [Interpretation of the task](#interpretation-of-the-task)). Storing them once per product means every line item of that product shows the same values. They are refreshed whenever an order containing the product is ingested, not when the product itself changes. `LineItem.title` keeps the title at purchase as the fallback when the line item has no product.
 
-**Delete behaviour.** The app subscribes to `orders/create`, `orders/updated`, `app/uninstalled` and `app/scopes_update` (the route for the two order topics, `/webhooks/orders`, is added in #1). None of them reports a deleted order or product, so a deletion in Shopify does not delete rows here. `app/uninstalled` currently deletes only the shop's `Session` rows; deleting the shop's data on uninstall is part of #1. Shopify requires every public app, listed on the App Store or not, to subscribe to the compliance webhooks (`customers/data_request`, `customers/redact`, `shop/redact`). The app does not subscribe to them yet; #65 adds them.
+**Delete behaviour.** The app subscribes to `orders/create`, `orders/updated`, `app/uninstalled` and `app/scopes_update`. None of them reports a deleted order or product, so a deletion in Shopify does not delete rows here. `app/uninstalled` deletes the shop's orders, line items, products and sessions, on every delivery of it. Shopify requires every public app, listed on the App Store or not, to subscribe to the compliance webhooks (`customers/data_request`, `customers/redact`, `shop/redact`). The app does not subscribe to them yet; #65 adds them.
 
 A product deleted in Shopify is expected to show up only on orders ingested again afterwards. For a deleted product the refetch is expected to return no product (`product: null`), so `productId` becomes null and the CSV falls back to the title at purchase. This is #6's reading of the API and is not yet confirmed with a captured response. Other orders containing that product keep showing its stored title and tags.
 
-The foreign keys define what happens when a row is deleted in the app's database. Deleting an order deletes its line items (`onDelete: Cascade`). Deleting a product keeps its line items and sets their `productId` to null (`onDelete: SetNull`), so the order and the title at purchase stay in the CSV. No code deletes orders or products yet; these rules keep the data consistent when #1 (uninstall) and #65 (`shop/redact`) add deletion.
+The foreign keys define what happens when a row is deleted in the app's database. Deleting an order deletes its line items (`onDelete: Cascade`). Deleting a product keeps its line items and sets their `productId` to null (`onDelete: SetNull`), so the order and the title at purchase stay in the CSV. `app/uninstalled` deletes a shop's orders (their line items go with them) and its products; #65 (`shop/redact`) will do the same.
 
 **Tags and payment gateways are JSON arrays in String columns**, e.g. `["VIP","wholesale"]`. SQLite has no array type. JSON keeps a value unambiguous whatever characters it contains (a comma-separated string would not), and adding or removing one tag is an array operation. Filtering by tag in SQL is not needed by the current requirements.
 
 **The order total is an integer in the currency's minor unit** (`totalPriceMinor`: 11.99 USD → `1199`, 1500 JPY → `1500`), stored with `currencyCode`. A String column cannot be summed with Prisma's `_sum`, and a Prisma `Decimal` on SQLite is stored as a floating-point REAL, so the total is kept as an integer. Totals across orders are summed per currency. The column is a `BigInt`, which Prisma returns as a JavaScript `bigint`. A 32-bit `Int` would cap one order at 2,147,483,647 minor units (about 21 million USD, or 2.1 million in a 3-decimal currency such as KWD), and one larger order would make every query that returns its row fail.
 
-**Indexes.** `Order(shop, shopifyCreatedAt)` serves the order list (a shop's orders, newest first). `LineItem(orderId)` and `LineItem(productId)` are indexed because SQLite does not index foreign keys on its own. `Product(shop)` is not a foreign key index (`shop` is a plain column), and no query uses it yet. It is for deleting a shop's products, on uninstall (#1) or on `shop/redact` (#65).
+**Indexes.** `Order(shop, shopifyCreatedAt)` serves the order list (a shop's orders, newest first). `LineItem(orderId)` and `LineItem(productId)` are indexed because SQLite does not index foreign keys on its own. `Product(shop)` is not a foreign key index (`shop` is a plain column). It serves deleting a shop's products on `app/uninstalled`, and later on `shop/redact` (#65).
 
 ## Interpretation of the task
 
@@ -176,6 +178,15 @@ Product tags are fetched together with the order whenever an order is ingested (
 ### Customer address: shipping address, falling back to billing
 
 *Customer address* is the order's shipping address. Orders without one (for example, digital goods) use the billing address.
+The address lines from Shopify (`formatted`, without the name) are joined with `, `, e.g. `123 Test Street, San Francisco CA 94103, United States`.
+
+### Customer name and email
+
+*Customer full name* is the order's customer, first and last name. *Customer email* is the email on the order. Both can be empty, for example for an order created in the admin without choosing a customer. Reading the customer requires the `read_customers` scope (#1).
+
+### Total price and quantity: current values, in the shop's currency
+
+*Total price* is the order's current total (`currentTotalPriceSet`) in the shop's currency: after refunds, returns and order edits, including taxes and discounts. A line item's quantity is its current quantity (`currentQuantity`), so a line item removed by an order edit is expected to stay with quantity `0` (read from the API reference, not yet confirmed with a captured response). Both match the order as it is now in the Shopify admin. Decided in #1.
 
 ### CSV format
 
@@ -210,6 +221,8 @@ _(to be expanded — Step 8)_
 ## Known limitations / Production considerations
 
 _(to be completed — Step 8, #12)_
+
+- Only the first 250 line items of an order are stored (one GraphQL page, `lineItems(first: 250)`). Line items beyond that are not stored and not in the CSV (#1)
 
 ### Dependency audit
 
