@@ -1,7 +1,5 @@
 import type { ActionFunctionArgs } from "react-router";
-import { mapOrder } from "../lib/domain/order-mapper";
-import { saveOrder } from "../lib/repositories/order-repository.server";
-import { ORDER_QUERY } from "../lib/shopify/order-query";
+import { ingestOrder } from "../lib/ingest-order.server";
 import { authenticate } from "../shopify.server";
 
 // orders/create and orders/updated (shopify.app.toml). The payload is only a
@@ -14,17 +12,8 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     return new Response();
   }
 
-  const response = await admin.graphql(ORDER_QUERY, {
-    variables: { id: payload.admin_graphql_api_id },
-  });
-  const { data } = await response.json();
-
-  // Deleted after the webhook was sent. Non-2xx would make Shopify retry a
-  // delivery that can never succeed.
-  if (!data?.order) {
-    return new Response();
-  }
-
-  await saveOrder(mapOrder(shop, data.order));
+  // An order deleted after the webhook was sent is not stored, and the response is
+  // still 200: non-2xx would make Shopify retry a delivery that can never succeed.
+  await ingestOrder(admin, shop, payload.admin_graphql_api_id);
   return new Response();
 };
