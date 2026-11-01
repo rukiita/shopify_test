@@ -1,5 +1,7 @@
 import type { OrderForIngestionQuery } from "../../app/types/admin.generated";
 import deletedOrder from "../fixtures/order-deleted.json";
+import orderIdsPage1 from "../fixtures/order-ids-page-1.json";
+import orderIdsPage2 from "../fixtures/order-ids-page-2.json";
 import noCustomerOrder from "../fixtures/order-no-customer.json";
 import productChangedOrder from "../fixtures/order-product-changed.json";
 import productNullOrder from "../fixtures/order-product-null.json";
@@ -28,3 +30,9 @@ export function fixtureOrder(fixture: OrderQueryResponse) {
   if (!fixture.data.order) throw new Error("This fixture has no order");
   return fixture.data.order;
 }
+
+// Two pages of ORDER_IDS_QUERY captured from the development store: the orders of
+// productChanged and noCustomer, then the order of productNull. Captured with
+// `first: 2` and a filter on those three IDs, so that the store's other orders do
+// not appear and the first page has a next page.
+export const orderIdPages = [orderIdsPage1, orderIdsPage2];

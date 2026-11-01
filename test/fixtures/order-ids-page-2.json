@@ -1,0 +1,15 @@
+{
+  "data": {
+    "orders": {
+      "nodes": [
+        {
+          "id": "gid://shopify/Order/6662859882651"
+        }
+      ],
+      "pageInfo": {
+        "hasNextPage": false,
+        "endCursor": "eyJsYXN0X2lkIjo2NjYyODU5ODgyNjUxLCJsYXN0X3ZhbHVlIjoiMjAyNi0xMS0wMSAwMzoyMToxMy43Njk1MTYifQ=="
+      }
+    }
+  }
+}
