@@ -12,31 +12,46 @@ import { ORDER_IDS_QUERY } from "./shopify/order-ids-query";
 // orders it has not stored yet.
 //
 // One order at a time, like the webhooks: writes are serialized anyway (#77).
-export async function syncOrders(admin: AdminApiContext, shop: string) {
+//
+// A failure, e.g. on the API rate limit, stops the sync: the orders written
+// before it stay, and the result says it failed. A 401 Response is thrown on,
+// because it asks App Bridge to get a new session token and retry.
+export async function syncOrders(
+  admin: AdminApiContext,
+  shop: string,
+): Promise<{ synced: number; failed?: true }> {
   let synced = 0;
-  let after: string | null | undefined;
-  do {
-    const response = await admin.graphql(ORDER_IDS_QUERY, {
-      variables: { after },
-    });
-    const { data } = await response.json();
-    const orders = data!.orders;
+  try {
+    let after: string | null | undefined;
+    do {
+      const response = await admin.graphql(ORDER_IDS_QUERY, {
+        variables: { after },
+      });
+      const { data } = await response.json();
+      const orders = data!.orders;
 
-    const stored = await findStoredUpdatedAt(
-      shop,
-      orders.nodes.map((order) => order.id),
-    );
-    for (const { id, updatedAt } of orders.nodes) {
-      const storedUpdatedAt = stored.get(id);
-      if (storedUpdatedAt && storedUpdatedAt >= new Date(updatedAt)) {
-        continue;
+      const stored = await findStoredUpdatedAt(
+        shop,
+        orders.nodes.map((order) => order.id),
+      );
+      for (const { id, updatedAt } of orders.nodes) {
+        const storedUpdatedAt = stored.get(id);
+        if (storedUpdatedAt && storedUpdatedAt >= new Date(updatedAt)) {
+          continue;
+        }
+        // Not counted when nothing was written, e.g. deleted since it was listed.
+        if (await ingestOrder(admin, shop, id)) {
+          synced += 1;
+        }
       }
-      // Not counted when nothing was written, e.g. deleted since it was listed.
-      if (await ingestOrder(admin, shop, id)) {
-        synced += 1;
-      }
+      after = orders.pageInfo.hasNextPage ? orders.pageInfo.endCursor : null;
+    } while (after);
+  } catch (error) {
+    if (error instanceof Response && error.status === 401) {
+      throw error;
     }
-    after = orders.pageInfo.hasNextPage ? orders.pageInfo.endCursor : null;
-  } while (after);
-  return synced;
+    console.error(`Sync of ${shop} failed after ${synced} orders`, error);
+    return { synced, failed: true };
+  }
+  return { synced };
 }

@@ -7,5 +7,5 @@ import { authenticate } from "../shopify.server";
 export const action = async ({ request }: ActionFunctionArgs) => {
   const { admin, session } = await authenticate.admin(request);
 
-  return { synced: await syncOrders(admin, session.shop) };
+  return syncOrders(admin, session.shop);
 };
