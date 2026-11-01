@@ -58,3 +58,15 @@ it("BE-1 Webhook ingestion : 1. maps a GraphQL order to database records", () =>
     ],
   });
 });
+
+it("BE-1 Webhook ingestion : 1. maps an order without a customer", () => {
+  const { order } = mapOrder(SHOP, fixtureOrder(fixtures.noCustomer));
+
+  expect(order).toMatchObject({
+    id: "gid://shopify/Order/6662857195675",
+    customerEmail: null,
+    customerFullName: null,
+    customerAddress: null,
+    totalPriceMinor: 2495n,
+  });
+});
