@@ -77,7 +77,8 @@ export async function redactCustomer(shop: string, orderIds: string[]) {
   });
 }
 
-// Deletes every order, line item, product and session of a shop (app/uninstalled).
+// Deletes every order, line item, product and session of a shop (app/uninstalled,
+// and shop/redact 48 hours later).
 // One transaction, so an ingestion that overlaps it either commits first (and is
 // deleted here), finds no session, or fails on the database lock and is retried.
 export async function deleteShopData(shop: string) {
