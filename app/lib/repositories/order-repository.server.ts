@@ -2,6 +2,13 @@ import db from "../../db.server";
 import type { MappedOrder } from "../domain/order-mapper";
 import { shouldOverwrite } from "../domain/should-overwrite";
 
+// The customer fields of a redacted order (customers/redact).
+const REDACTED = {
+  customerEmail: null,
+  customerFullName: null,
+  customerAddress: null,
+};
+
 // Writes one ingested order. Primary keys are Shopify GIDs, so writing the same
 // order again updates the same rows instead of adding new ones.
 //
@@ -44,7 +51,7 @@ export async function saveOrder({ order, lineItems, products }: MappedOrder) {
 
     const stored = await tx.order.findUnique({
       where: { id: order.id },
-      select: { shopifyUpdatedAt: true },
+      select: { shopifyUpdatedAt: true, customerRedacted: true },
     });
     if (
       !shouldOverwrite(stored?.shopifyUpdatedAt ?? null, order.shopifyUpdatedAt)
@@ -53,7 +60,12 @@ export async function saveOrder({ order, lineItems, products }: MappedOrder) {
     }
 
     if (stored) {
-      await tx.order.update({ where: { id: order.id }, data: order });
+      await tx.order.update({
+        where: { id: order.id },
+        // A redacted order keeps its customer fields empty, whatever the fetch
+        // returned (customers/redact).
+        data: stored.customerRedacted ? { ...order, ...REDACTED } : order,
+      });
     } else {
       await tx.order.create({ data: order });
     }
@@ -63,7 +75,19 @@ export async function saveOrder({ order, lineItems, products }: MappedOrder) {
   });
 }
 
-// Deletes every order, line item, product and session of a shop (app/uninstalled).
+// Removes the customer's email, name and address from the given orders of a shop
+// (customers/redact), and marks the orders so that a later ingestion does not
+// write them back. The order, its line items and tags stay. Orders not stored
+// here are skipped.
+export async function redactCustomer(shop: string, orderIds: string[]) {
+  await db.order.updateMany({
+    where: { shop, id: { in: orderIds } },
+    data: { ...REDACTED, customerRedacted: true },
+  });
+}
+
+// Deletes every order, line item, product and session of a shop (app/uninstalled,
+// and shop/redact 48 hours later).
 // One transaction, so an ingestion that overlaps it either commits first (and is
 // deleted here), finds no session, or fails on the database lock and is retried.
 export async function deleteShopData(shop: string) {

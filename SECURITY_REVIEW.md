@@ -60,7 +60,7 @@ The command skips test files, documentation, missing hardening, data retention a
 
 | Check | Why it matters here |
 |---|---|
-| Only the customer fields the app needs are stored, and a shop's data is deleted on `app/uninstalled` | Protected customer data terms; less to leak |
+| Only the customer fields the app needs are stored. A shop's data is deleted on `app/uninstalled` and `shop/redact`, and `customers/redact` removes the customer fields from the listed orders | Protected customer data terms; less to leak |
 | `test/fixtures/` and `samples/` contain only test names, emails and addresses | Fixtures are captured from real responses (CONTRIBUTING.md, "spike"), and test files are outside `/security-review` |
 | Scopes stay at `read_customers` (the order's customer name, #1), `read_orders`, `read_products`, `write_orders` (ADR-0004). Any addition is justified in the PR | Least privilege; merchants grant these at install |
 | CSV cells starting with `=`, `+`, `-`, `@`, tab or carriage return cannot run as formulas in a spreadsheet | Tags and customer fields are user-controlled and end up in Excel |
@@ -73,7 +73,7 @@ The command skips test files, documentation, missing hardening, data retention a
 - Anything that exposes customer data, lets an unauthenticated request change data, or leaks a secret is a **Blocker**
 - The fix-and-verify limit in [REVIEW.md](REVIEW.md) §4 covers both parts together: one round, then stop and report
 
-If a finding cannot be fixed within the task (for example, the mandatory compliance webhooks for App Store distribution), record it in the README under "Known limitations / Production considerations".
+If a finding cannot be fixed within the task, record it in the README under "Known limitations / Production considerations".
 
 ## References
 

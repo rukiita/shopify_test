@@ -56,6 +56,7 @@ it("BE-1 Webhook ingestion : 1. stores the order and line items for a signed ord
     customerFullName: "Test Buyer",
     customerAddress:
       "123 Test Street, Apt 4, Building B, San Francisco CA 94103, United States",
+    customerRedacted: false,
     tags: JSON.stringify(["Snowboard"]),
     shopifyCreatedAt: new Date("2026-11-01T05:17:27Z"),
     shopifyUpdatedAt: new Date("2026-11-01T05:24:39Z"),

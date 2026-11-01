@@ -55,6 +55,9 @@ model Order {
   customerEmail    String?
   customerFullName String?
   customerAddress  String?
+  // Set by customers/redact. The three customer fields stay null from then on,
+  // even when a later ingestion of the order fetches them again.
+  customerRedacted Boolean    @default(false)
   tags             String // JSON array of tags
   shopifyCreatedAt DateTime
   shopifyUpdatedAt DateTime
