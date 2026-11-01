@@ -130,3 +130,68 @@ it("BE-1 Webhook ingestion : 1. does not duplicate when the same webhook arrives
   expect(await db.lineItem.count()).toBe(2);
   expect(await db.product.count()).toBe(2);
 });
+
+it("BE-1 Webhook ingestion : 2. updates the stored order for a signed orders/updated webhook", async () => {
+  // The order as stored before a staff edit: no tags, another address, and a line
+  // item the edit removed.
+  await db.product.create({
+    data: {
+      id: "gid://shopify/Product/9478544261275",
+      shop: SHOP,
+      title: "The Collection Snowboard: Hydrogen",
+      tags: JSON.stringify([]),
+    },
+  });
+  await db.order.create({
+    data: {
+      id: ORDER_ID,
+      shop: SHOP,
+      name: "#1001",
+      number: 1001,
+      totalPriceMinor: 134995n,
+      currencyCode: "USD",
+      paymentGateways: JSON.stringify(["bogus"]),
+      customerEmail: "test.buyer+1@example.com",
+      customerFullName: "Test Buyer",
+      customerAddress: "1 Old Street, San Francisco CA 94103, United States",
+      tags: JSON.stringify([]),
+      shopifyCreatedAt: new Date("2026-10-31T06:33:06Z"),
+      shopifyUpdatedAt: new Date("2026-10-31T06:33:08Z"),
+      lineItems: {
+        create: [
+          {
+            id: "gid://shopify/LineItem/15126054502555",
+            productId: "gid://shopify/Product/9478544261275",
+            title: "The Collection Snowboard: Hydrogen",
+            quantity: 1,
+          },
+          {
+            id: "gid://shopify/LineItem/1",
+            productId: null,
+            title: "Removed item",
+            quantity: 1,
+          },
+        ],
+      },
+    },
+  });
+  mockAdminGraphql(SHOP, fixtures.regular);
+
+  const response = await orders(orderWebhook("orders/updated", ORDER_ID));
+
+  expect(response.status).toBe(200);
+  const order = await db.order.findUniqueOrThrow({
+    where: { id: ORDER_ID },
+    include: { lineItems: { orderBy: { id: "asc" } } },
+  });
+  expect(order).toMatchObject({
+    tags: JSON.stringify(["Snowboard"]),
+    customerAddress:
+      "123 Test Street, Apt 4, Building B, San Francisco CA 94103, United States",
+    shopifyUpdatedAt: new Date("2026-11-01T03:25:55Z"),
+  });
+  expect(order.lineItems.map((lineItem) => lineItem.id)).toEqual([
+    "gid://shopify/LineItem/15126054502555",
+    "gid://shopify/LineItem/15126054535323",
+  ]);
+});
