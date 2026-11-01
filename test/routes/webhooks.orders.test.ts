@@ -2,7 +2,7 @@ import type { ActionFunctionArgs } from "react-router";
 import { afterEach, beforeEach, expect, it } from "vitest";
 import db from "../../app/db.server";
 import { action } from "../../app/routes/webhooks.orders";
-import regularOrder from "../fixtures/order-regular.json";
+import { fixtures } from "../helpers/order-fixtures";
 import { mockAdminGraphql, resetAdminGraphql } from "../helpers/admin-graphql";
 import { resetDatabase } from "../helpers/database";
 import { createOfflineSession } from "../helpers/session";
@@ -32,7 +32,7 @@ const orderWebhook = (topic: string, orderId: string) =>
   });
 
 it("BE-1 Webhook ingestion : 1. stores the order and line items for a signed orders/create webhook", async () => {
-  const requests = mockAdminGraphql(SHOP, regularOrder);
+  const requests = mockAdminGraphql(SHOP, fixtures.regular);
 
   const response = await orders(orderWebhook("orders/create", ORDER_ID));
 
@@ -74,4 +74,15 @@ it("BE-1 Webhook ingestion : 1. stores the order and line items for a signed ord
       },
     ],
   });
+});
+
+it("BE-1 Webhook ingestion : 1. returns 200 and stores nothing when the refetched order no longer exists", async () => {
+  const DELETED_ORDER_ID = "gid://shopify/Order/6662861226139";
+  const requests = mockAdminGraphql(SHOP, fixtures.deleted);
+
+  const response = await orders(orderWebhook("orders/create", DELETED_ORDER_ID));
+
+  expect(response.status).toBe(200);
+  expect(requests).toHaveLength(1);
+  expect(await db.order.count()).toBe(0);
 });
