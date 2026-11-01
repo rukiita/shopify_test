@@ -127,3 +127,48 @@ it("BE-6 Fields not in order JSON : 2. keeps the stored product when the fetched
     shopifyUpdatedAt: new Date("2026-11-01T05:20:01Z"),
   });
 });
+
+it("BE-6 Fields not in order JSON : 2. overwrites the stored product when the fetched product has the same updatedAt", async () => {
+  await saveOrder(current());
+  // updatedAt has one-second precision, so a later change made in the same second
+  // carries the same value.
+  const sameSecond = current();
+  sameSecond.products[0] = {
+    ...sameSecond.products[0],
+    tags: JSON.stringify(["Sale"]),
+  };
+
+  await saveOrder(sameSecond);
+
+  expect(
+    await db.product.findUniqueOrThrow({
+      where: { id: "gid://shopify/Product/9478544359579" },
+      select: { tags: true },
+    }),
+  ).toEqual({ tags: JSON.stringify(["Sale"]) });
+});
+
+it("BE-6 Fields not in order JSON : 2. overwrites a product stored before its updatedAt was recorded", async () => {
+  // The migration that added shopifyUpdatedAt gave existing rows 1970-01-01.
+  await db.product.create({
+    data: {
+      id: "gid://shopify/Product/9478544359579",
+      shop: SHOP,
+      title: "Old title",
+      tags: JSON.stringify([]),
+      shopifyUpdatedAt: new Date(0),
+    },
+  });
+
+  await saveOrder(current());
+
+  expect(
+    await db.product.findUniqueOrThrow({
+      where: { id: "gid://shopify/Product/9478544359579" },
+    }),
+  ).toMatchObject({
+    title: "The Compare at Price Snowboard",
+    tags: JSON.stringify(["Accessory", "Sport", "Winter"]),
+    shopifyUpdatedAt: new Date("2026-11-01T05:17:32Z"),
+  });
+});
