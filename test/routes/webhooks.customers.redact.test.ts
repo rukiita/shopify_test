@@ -49,3 +49,22 @@ it("BE-7 Whole app : 1. customers/redact removes the customer's email, name and 
     customerAddress: null,
   });
 });
+
+it("BE-7 Whole app : 1. customers/redact returns 401 for an invalid signature and changes nothing", async () => {
+  await saveOrder(mapOrder(SHOP, fixtureOrder(fixtures.regular)));
+  const before = await storedOrder(LISTED_ORDER_ID);
+
+  const response = await redact(
+    signedWebhookRequest({
+      path: "/webhooks/customers/redact",
+      topic: "customers/redact",
+      shop: SHOP,
+      body: redactPayload,
+      secret: "not-the-app-secret",
+    }),
+  ).catch((thrown: unknown) => thrown);
+
+  expect(response).toBeInstanceOf(Response);
+  expect((response as Response).status).toBe(401);
+  expect(await storedOrder(LISTED_ORDER_ID)).toEqual(before);
+});
