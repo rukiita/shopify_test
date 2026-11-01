@@ -1,0 +1,13 @@
+{
+  "shop_id": 954889,
+  "shop_domain": "test-shop.myshopify.com",
+  "customer": {
+    "id": 191167,
+    "email": "test.buyer+1@example.com",
+    "phone": "555-555-0100"
+  },
+  "orders_requested": [6663058751643, 6662859882651],
+  "data_request": {
+    "id": 9999
+  }
+}
