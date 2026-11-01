@@ -53,6 +53,7 @@ it("BE-7 Whole app : 1. app/uninstalled with an invalid signature returns 401 an
 it("BE-7 Whole app : 1. app/uninstalled deletes the shop's orders, line items and products", async () => {
   await saveOrder(mapOrder(SHOP, fixtureOrder(fixtures.regular)));
   // Another shop's order, with other products.
+  await createOfflineSession(OTHER_SHOP);
   await saveOrder(mapOrder(OTHER_SHOP, fixtureOrder(fixtures.noCustomer)));
 
   const response = await uninstalled(
@@ -75,10 +76,10 @@ it("BE-7 Whole app : 1. app/uninstalled deletes the shop's orders, line items an
 });
 
 it("BE-7 Whole app : 1. a repeated app/uninstalled deletes the shop's data even without sessions", async () => {
-  // A first delivery deleted the sessions, then failed before deleting the data,
-  // so Shopify retries it.
-  await db.session.deleteMany();
+  // The sessions are gone but the data is left, e.g. by a delivery handled
+  // before the deletes ran in one transaction.
   await saveOrder(mapOrder(SHOP, fixtureOrder(fixtures.regular)));
+  await db.session.deleteMany();
 
   const response = await uninstalled(
     signedWebhookRequest({

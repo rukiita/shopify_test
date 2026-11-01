@@ -4,11 +4,15 @@ import { mapOrder, type MappedOrder } from "../../app/lib/domain/order-mapper";
 import { saveOrder } from "../../app/lib/repositories/order-repository.server";
 import { resetDatabase } from "../helpers/database";
 import { fixtureOrder, fixtures } from "../helpers/order-fixtures";
+import { createOfflineSession } from "../helpers/session";
 
 const SHOP = "test-shop.myshopify.com";
 const ORDER_ID = "gid://shopify/Order/6661012521115";
 
-beforeEach(resetDatabase);
+beforeEach(async () => {
+  await resetDatabase();
+  await createOfflineSession(SHOP);
+});
 
 const current = () => mapOrder(SHOP, fixtureOrder(fixtures.regular));
 
@@ -63,4 +67,16 @@ it("BE-1 Webhook ingestion : 2. updates the products even when the order is not 
     title: "Hydrogen Snowboard",
     tags: JSON.stringify(["Sale"]),
   });
+});
+
+it("BE-1 Webhook ingestion : 1. stores nothing when the shop was uninstalled during the fetch", async () => {
+  // app/uninstalled deleted the shop's data and sessions while the order was
+  // being fetched.
+  await db.session.deleteMany();
+
+  await saveOrder(current());
+
+  expect(await db.order.count()).toBe(0);
+  expect(await db.lineItem.count()).toBe(0);
+  expect(await db.product.count()).toBe(0);
 });
