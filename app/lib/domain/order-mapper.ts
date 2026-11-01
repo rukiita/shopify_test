@@ -4,7 +4,8 @@ import { toMinorUnits } from "./money";
 
 // The rows one ingestion of an order writes.
 export interface MappedOrder {
-  order: Order;
+  // customerRedacted is the app's own state (customers/redact), never fetched.
+  order: Omit<Order, "customerRedacted">;
   lineItems: LineItem[];
   // One per product, even when several line items share it.
   products: Product[];

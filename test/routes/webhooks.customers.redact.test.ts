@@ -47,6 +47,7 @@ it("BE-7 Whole app : 1. customers/redact removes the customer's email, name and 
     customerEmail: null,
     customerFullName: null,
     customerAddress: null,
+    customerRedacted: true,
   });
 });
 
