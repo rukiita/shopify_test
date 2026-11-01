@@ -6,6 +6,8 @@ export function toMinorUnits(amount: string, currencyCode: string): bigint {
     style: "currency",
     currency: currencyCode,
   }).resolvedOptions().maximumFractionDigits;
+  // Never undefined with style "currency" (an invalid code already throws a
+  // RangeError above); the check only narrows the type, which declares it optional.
   if (fractionDigits === undefined) {
     throw new Error(`Unknown number of decimals for ${currencyCode}`);
   }
