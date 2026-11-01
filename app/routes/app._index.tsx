@@ -8,6 +8,8 @@ import { useFetcher } from "react-router";
 import { useAppBridge } from "@shopify/app-bridge-react";
 import { authenticate } from "../shopify.server";
 import { boundary } from "@shopify/shopify-app-react-router/server";
+import { SyncButton } from "../components/sync-button";
+import type { action as syncAction } from "./app.sync";
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
   await authenticate.admin(request);
@@ -100,8 +102,26 @@ export default function Index() {
 
   const generateProduct = () => fetcher.submit({}, { method: "POST" });
 
+  const syncFetcher = useFetcher<typeof syncAction>();
+  const syncOrders = () =>
+    syncFetcher.submit({}, { method: "POST", action: "/app/sync" });
+
   return (
     <s-page heading="Shopify app template">
+      <s-section heading="Orders">
+        <s-stack direction="block" gap="base">
+          <s-paragraph>
+            Webhooks only report orders placed or changed after the app was
+            installed. Sync imports the orders from the last 60 days.
+          </s-paragraph>
+          <SyncButton
+            syncing={syncFetcher.state !== "idle"}
+            synced={syncFetcher.data?.synced}
+            failed={syncFetcher.data?.failed}
+            onSync={syncOrders}
+          />
+        </s-stack>
+      </s-section>
       <s-button slot="primary-action" onClick={generateProduct}>
         Generate a product
       </s-button>

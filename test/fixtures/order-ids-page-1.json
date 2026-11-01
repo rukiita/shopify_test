@@ -1,0 +1,20 @@
+{
+  "data": {
+    "orders": {
+      "nodes": [
+        {
+          "id": "gid://shopify/Order/6661012521115",
+          "updatedAt": "2026-11-01T03:25:55Z"
+        },
+        {
+          "id": "gid://shopify/Order/6662857195675",
+          "updatedAt": "2026-11-01T03:18:31Z"
+        }
+      ],
+      "pageInfo": {
+        "hasNextPage": true,
+        "endCursor": "eyJsYXN0X2lkIjo2NjYyODU3MTk1Njc1LCJsYXN0X3ZhbHVlIjoiMjAyNi0xMS0wMSAwMzoxODoyOS42MzI3MjcifQ=="
+      }
+    }
+  }
+}
