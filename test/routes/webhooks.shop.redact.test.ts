@@ -68,3 +68,24 @@ it("BE-7 Whole app : 1. shop/redact returns 401 for an invalid signature and kee
   expect(await db.product.count()).toBe(2);
   expect(await db.session.count()).toBe(1);
 });
+
+it("BE-7 Whole app : 1. shop/redact returns 401 and keeps the data when the payload is for another shop", async () => {
+  // A body signed for test-shop, resent with another shop in the unsigned
+  // X-Shopify-Shop-Domain header.
+  await createOfflineSession(OTHER_SHOP);
+  await saveOrder(mapOrder(OTHER_SHOP, fixtureOrder(fixtures.regular)));
+  await db.session.deleteMany({ where: { shop: OTHER_SHOP } });
+
+  const response = await shopRedact(
+    signedWebhookRequest({
+      path: "/webhooks/shop/redact",
+      topic: "shop/redact",
+      shop: OTHER_SHOP,
+      body: shopRedactPayload,
+    }),
+  );
+
+  expect(response.status).toBe(401);
+  expect(await db.order.count({ where: { shop: OTHER_SHOP } })).toBe(1);
+  expect(await db.product.count({ where: { shop: OTHER_SHOP } })).toBe(2);
+});

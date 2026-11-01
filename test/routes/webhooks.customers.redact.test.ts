@@ -110,3 +110,24 @@ it("BE-7 Whole app : 1. customers/redact returns 200 and changes nothing when or
   expect(response.status).toBe(200);
   expect(await storedOrder(LISTED_ORDER_ID)).toEqual(before);
 });
+
+it("BE-7 Whole app : 1. customers/redact returns 401 and changes nothing when the payload is for another shop", async () => {
+  // A body signed for test-shop, resent with another shop in the unsigned
+  // X-Shopify-Shop-Domain header.
+  const OTHER_SHOP = "other-shop.myshopify.com";
+  await createOfflineSession(OTHER_SHOP);
+  await saveOrder(mapOrder(OTHER_SHOP, fixtureOrder(fixtures.regular)));
+  const before = await storedOrder(LISTED_ORDER_ID);
+
+  const response = await redact(
+    signedWebhookRequest({
+      path: "/webhooks/customers/redact",
+      topic: "customers/redact",
+      shop: OTHER_SHOP,
+      body: redactPayload,
+    }),
+  );
+
+  expect(response.status).toBe(401);
+  expect(await storedOrder(LISTED_ORDER_ID)).toEqual(before);
+});
