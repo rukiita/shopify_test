@@ -68,3 +68,26 @@ it("BE-7 Whole app : 1. customers/redact returns 401 for an invalid signature an
   expect((response as Response).status).toBe(401);
   expect(await storedOrder(LISTED_ORDER_ID)).toEqual(before);
 });
+
+it("BE-7 Whole app : 1. customers/redact redacts even when the shop has no session", async () => {
+  // Redaction can be requested after the app was uninstalled, when the sessions
+  // are gone but shop/redact has not deleted the data yet.
+  await saveOrder(mapOrder(SHOP, fixtureOrder(fixtures.regular)));
+  await db.session.deleteMany();
+
+  const response = await redact(
+    signedWebhookRequest({
+      path: "/webhooks/customers/redact",
+      topic: "customers/redact",
+      shop: SHOP,
+      body: redactPayload,
+    }),
+  );
+
+  expect(response.status).toBe(200);
+  expect(await storedOrder(LISTED_ORDER_ID)).toMatchObject({
+    customerEmail: null,
+    customerFullName: null,
+    customerAddress: null,
+  });
+});
