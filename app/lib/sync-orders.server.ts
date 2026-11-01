@@ -34,7 +34,11 @@ export async function syncOrders(
         tries: TRIES,
       });
       const { data } = await response.json();
-      const orders = data!.orders;
+      // The client throws on GraphQL errors, so this is not expected.
+      if (!data) {
+        throw new Error("The orders query returned no data");
+      }
+      const { orders } = data;
 
       const stored = await findStoredUpdatedAt(
         shop,
