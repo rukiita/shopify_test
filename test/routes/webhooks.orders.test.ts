@@ -144,6 +144,7 @@ it("BE-1 Webhook ingestion : 2. updates the stored order for a signed orders/upd
       shop: SHOP,
       title: "The Collection Snowboard: Hydrogen",
       tags: JSON.stringify([]),
+      shopifyUpdatedAt: new Date("2026-11-01T05:17:32Z"),
     },
   });
   await db.order.create({

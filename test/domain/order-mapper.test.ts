@@ -48,12 +48,14 @@ it("BE-1 Webhook ingestion : 1. maps a GraphQL order to database records", () =>
         shop: SHOP,
         title: "The Compare at Price Snowboard",
         tags: JSON.stringify(["Accessory", "Sport", "Winter"]),
+        shopifyUpdatedAt: new Date("2026-11-01T05:17:32Z"),
       },
       {
         id: "gid://shopify/Product/9478544261275",
         shop: SHOP,
         title: "The Collection Snowboard: Hydrogen Changed",
         tags: JSON.stringify(["Accessory", "Snowboard", "Sport", "Winter"]),
+        shopifyUpdatedAt: new Date("2026-11-01T05:20:01Z"),
       },
     ],
   });

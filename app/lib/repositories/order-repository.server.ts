@@ -17,13 +17,24 @@ export async function saveOrder({ order, lineItems, products }: MappedOrder) {
       return;
     }
 
-    // Line items point to products, so products are written first.
+    // Line items point to products, so products are written first. Each product
+    // has its own updatedAt check: two orders with the same product can be
+    // ingested at once, and the older fetch may finish last.
     for (const product of products) {
-      await tx.product.upsert({
+      const storedProduct = await tx.product.findUnique({
         where: { id: product.id },
-        create: product,
-        update: product,
+        select: { shopifyUpdatedAt: true },
       });
+      if (!storedProduct) {
+        await tx.product.create({ data: product });
+      } else if (
+        shouldOverwrite(
+          storedProduct.shopifyUpdatedAt,
+          product.shopifyUpdatedAt,
+        )
+      ) {
+        await tx.product.update({ where: { id: product.id }, data: product });
+      }
     }
 
     const stored = await tx.order.findUnique({

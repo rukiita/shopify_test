@@ -80,11 +80,14 @@ model LineItem {
 }
 
 model Product {
-  id        String     @id // gid://shopify/Product/...
-  shop      String
-  title     String
-  tags      String // JSON array of tags
-  lineItems LineItem[]
+  id               String     @id // gid://shopify/Product/...
+  shop             String
+  title            String
+  tags             String // JSON array of tags
+  // The product's updatedAt in Shopify, so an older fetch of the product is not
+  // written over a newer one (two orders with the same product ingested at once).
+  shopifyUpdatedAt DateTime
+  lineItems        LineItem[]
 
   @@index([shop])
 }
