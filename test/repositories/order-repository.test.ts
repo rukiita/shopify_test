@@ -59,5 +59,8 @@ it("BE-1 Webhook ingestion : 2. updates the products even when the order is not 
     await db.product.findUniqueOrThrow({
       where: { id: "gid://shopify/Product/9478544261275" },
     }),
-  ).toMatchObject({ title: "Hydrogen Snowboard", tags: JSON.stringify(["Sale"]) });
+  ).toMatchObject({
+    title: "Hydrogen Snowboard",
+    tags: JSON.stringify(["Sale"]),
+  });
 });

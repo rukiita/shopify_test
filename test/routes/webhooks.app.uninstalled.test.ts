@@ -6,6 +6,7 @@ import { saveOrder } from "../../app/lib/repositories/order-repository.server";
 import { action } from "../../app/routes/webhooks.app.uninstalled";
 import { resetDatabase } from "../helpers/database";
 import { fixtureOrder, fixtures } from "../helpers/order-fixtures";
+import { createOfflineSession } from "../helpers/session";
 import { signedWebhookRequest } from "../helpers/webhook";
 
 const SHOP = "test-shop.myshopify.com";
@@ -13,15 +14,7 @@ const OTHER_SHOP = "other-shop.myshopify.com";
 
 beforeEach(async () => {
   await resetDatabase();
-  await db.session.create({
-    data: {
-      id: `offline_${SHOP}`,
-      shop: SHOP,
-      state: "",
-      isOnline: false,
-      accessToken: "test-access-token",
-    },
-  });
+  await createOfflineSession(SHOP);
 });
 
 const uninstalled = (request: Request) =>

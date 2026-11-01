@@ -37,7 +37,9 @@ it("BE-1 Webhook ingestion : 1. stores the order and line items for a signed ord
   const response = await orders(orderWebhook("orders/create", ORDER_ID));
 
   expect(response.status).toBe(200);
-  expect(requests.map((request) => request.variables)).toEqual([{ id: ORDER_ID }]);
+  expect(requests.map((request) => request.variables)).toEqual([
+    { id: ORDER_ID },
+  ]);
   const order = await db.order.findUniqueOrThrow({
     where: { id: ORDER_ID },
     include: { lineItems: { orderBy: { id: "asc" } } },
@@ -80,7 +82,9 @@ it("BE-1 Webhook ingestion : 1. returns 200 and stores nothing when the refetche
   const DELETED_ORDER_ID = "gid://shopify/Order/6662861226139";
   const requests = mockAdminGraphql(SHOP, fixtures.deleted);
 
-  const response = await orders(orderWebhook("orders/create", DELETED_ORDER_ID));
+  const response = await orders(
+    orderWebhook("orders/create", DELETED_ORDER_ID),
+  );
 
   expect(response.status).toBe(200);
   expect(requests).toHaveLength(1);

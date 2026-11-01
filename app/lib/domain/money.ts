@@ -18,8 +18,12 @@ export function toMinorUnits(amount: string, currencyCode: string): bigint {
 
   // "1500.0" JPY is fine; "1.234" USD would lose a digit.
   if (/[1-9]/.test(fraction.slice(fractionDigits))) {
-    throw new Error(`"${amount}" has more decimals than ${currencyCode} allows`);
+    throw new Error(
+      `"${amount}" has more decimals than ${currencyCode} allows`,
+    );
   }
 
-  return BigInt(whole + fraction.slice(0, fractionDigits).padEnd(fractionDigits, "0"));
+  return BigInt(
+    whole + fraction.slice(0, fractionDigits).padEnd(fractionDigits, "0"),
+  );
 }

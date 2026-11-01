@@ -36,7 +36,9 @@ export function mapOrder(shop: string, order: ShopifyOrder): MappedOrder {
       paymentGateways: JSON.stringify(order.paymentGatewayNames),
       customerEmail: order.email ?? null,
       customerFullName: fullName(order.customer),
-      customerAddress: formatAddress(order.shippingAddress ?? order.billingAddress),
+      customerAddress: formatAddress(
+        order.shippingAddress ?? order.billingAddress,
+      ),
       tags: JSON.stringify(order.tags),
       shopifyCreatedAt: new Date(order.createdAt),
       shopifyUpdatedAt: new Date(order.updatedAt),
@@ -53,7 +55,9 @@ export function mapOrder(shop: string, order: ShopifyOrder): MappedOrder {
 }
 
 function fullName(customer: ShopifyOrder["customer"]) {
-  const name = [customer?.firstName, customer?.lastName].filter(Boolean).join(" ");
+  const name = [customer?.firstName, customer?.lastName]
+    .filter(Boolean)
+    .join(" ");
   return name || null;
 }
 

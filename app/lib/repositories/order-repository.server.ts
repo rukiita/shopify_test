@@ -22,7 +22,9 @@ export async function saveOrder({ order, lineItems, products }: MappedOrder) {
       where: { id: order.id },
       select: { shopifyUpdatedAt: true },
     });
-    if (!shouldOverwrite(stored?.shopifyUpdatedAt ?? null, order.shopifyUpdatedAt)) {
+    if (
+      !shouldOverwrite(stored?.shopifyUpdatedAt ?? null, order.shopifyUpdatedAt)
+    ) {
       return;
     }
 
