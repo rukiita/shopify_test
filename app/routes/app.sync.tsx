@@ -1,5 +1,5 @@
 import type { ActionFunctionArgs } from "react-router";
-import { syncOrders } from "../lib/ingest-order.server";
+import { syncOrders } from "../lib/sync-orders.server";
 import { authenticate } from "../shopify.server";
 
 // The Sync button (#21): imports orders placed before the app was installed,
