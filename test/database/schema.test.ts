@@ -15,6 +15,7 @@ const createProduct = () =>
       shop: SHOP,
       title: "Test Product",
       tags: JSON.stringify(["summer", "sale"]),
+      shopifyUpdatedAt: new Date("2026-10-30T12:00:00Z"),
     },
   });
 
@@ -91,6 +92,7 @@ it("BE-7 Whole app : 3. an Order with its LineItems and Products is written and 
         shop: SHOP,
         title: "Test Product",
         tags: JSON.stringify(["summer", "sale"]),
+        shopifyUpdatedAt: new Date("2026-10-30T12:00:00Z"),
       },
     },
   ]);

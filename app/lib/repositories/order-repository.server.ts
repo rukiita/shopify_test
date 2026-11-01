@@ -7,6 +7,7 @@ import { shouldOverwrite } from "../domain/should-overwrite";
 //
 // The order and its line items are written unless the fetched updatedAt is older
 // than the stored one, so a fetch that finishes late cannot overwrite newer data.
+// Each product is checked the same way, by the product's own updatedAt.
 export async function saveOrder({ order, lineItems, products }: MappedOrder) {
   await db.$transaction(async (tx) => {
     // app/uninstalled deletes the shop's data and sessions in one transaction
@@ -17,13 +18,28 @@ export async function saveOrder({ order, lineItems, products }: MappedOrder) {
       return;
     }
 
-    // Line items point to products, so products are written first.
+    // Line items point to products, so products are written first. Each product
+    // has its own updatedAt check: two orders with the same product can be
+    // ingested at once, and the older fetch may finish last.
+    // One read for all of them: an order can have up to 250 line items.
+    const storedProducts = new Map(
+      (
+        await tx.product.findMany({
+          where: { id: { in: products.map((product) => product.id) } },
+          select: { id: true, shopifyUpdatedAt: true },
+        })
+      ).map((stored) => [stored.id, stored.shopifyUpdatedAt]),
+    );
     for (const product of products) {
-      await tx.product.upsert({
-        where: { id: product.id },
-        create: product,
-        update: product,
-      });
+      const storedUpdatedAt = storedProducts.get(product.id) ?? null;
+      if (!shouldOverwrite(storedUpdatedAt, product.shopifyUpdatedAt)) {
+        continue;
+      }
+      if (storedUpdatedAt) {
+        await tx.product.update({ where: { id: product.id }, data: product });
+      } else {
+        await tx.product.create({ data: product });
+      }
     }
 
     const stored = await tx.order.findUnique({

@@ -21,6 +21,7 @@ export function mapOrder(shop: string, order: ShopifyOrder): MappedOrder {
         shop,
         title: product.title,
         tags: JSON.stringify(product.tags),
+        shopifyUpdatedAt: new Date(product.updatedAt),
       });
     }
   }
