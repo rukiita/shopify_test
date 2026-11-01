@@ -36,11 +36,11 @@ export async function saveOrder({ order, lineItems, products }: MappedOrder) {
       return;
     }
 
-    await tx.order.upsert({
-      where: { id: order.id },
-      create: order,
-      update: order,
-    });
+    if (stored) {
+      await tx.order.update({ where: { id: order.id }, data: order });
+    } else {
+      await tx.order.create({ data: order });
+    }
     // Replaced as a set, so a line item removed from the order is removed here.
     await tx.lineItem.deleteMany({ where: { orderId: order.id } });
     await tx.lineItem.createMany({ data: lineItems });
