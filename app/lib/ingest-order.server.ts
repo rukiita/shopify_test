@@ -43,8 +43,10 @@ export async function syncOrders(admin: AdminApiContext, shop: string) {
     const orders = data!.orders;
 
     for (const { id } of orders.nodes) {
-      await ingestOrder(admin, shop, id);
-      synced += 1;
+      // Deleted since it was listed: not stored, not counted.
+      if (await ingestOrder(admin, shop, id)) {
+        synced += 1;
+      }
     }
     after = orders.pageInfo.hasNextPage ? orders.pageInfo.endCursor : null;
   } while (after);
