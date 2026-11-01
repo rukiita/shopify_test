@@ -222,6 +222,7 @@ _(to be expanded — Step 8)_
 
 _(to be completed — Step 8, #12)_
 
+- `read_customers` was added after the first install (#1). A store installed before that has it only once the merchant opens the app and approves the new scope. Until then the order query is denied, and order webhooks for that store fail and are retried
 - Only the first 250 line items of an order are stored (one GraphQL page, `lineItems(first: 250)`). Line items beyond that are not stored and not in the CSV (#1)
 
 ### Dependency audit
