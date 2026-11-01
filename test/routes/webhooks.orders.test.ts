@@ -117,3 +117,16 @@ it("BE-1 Webhook ingestion : 1. returns 200 and stores nothing when the shop has
   expect(requests).toHaveLength(0);
   expect(await db.order.count()).toBe(0);
 });
+
+it("BE-1 Webhook ingestion : 1. does not duplicate when the same webhook arrives twice", async () => {
+  mockAdminGraphql(SHOP, fixtures.regular);
+
+  for (let delivery = 0; delivery < 2; delivery++) {
+    const response = await orders(orderWebhook("orders/create", ORDER_ID));
+    expect(response.status).toBe(200);
+  }
+
+  expect(await db.order.count()).toBe(1);
+  expect(await db.lineItem.count()).toBe(2);
+  expect(await db.product.count()).toBe(2);
+});
