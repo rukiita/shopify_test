@@ -252,9 +252,9 @@ it("BE-1 Webhook ingestion : 1. stores every order when several signed orders/cr
         ...regular,
         id,
         lineItems: {
-          nodes: regular.lineItems.nodes.map((lineItem) => ({
+          nodes: regular.lineItems.nodes.map((lineItem, index) => ({
             ...lineItem,
-            id: `${lineItem.id}-${String(id).split("/").pop()}`,
+            id: `gid://shopify/LineItem/${Number(String(id).split("/").pop()) * 100 + index}`,
           })),
         },
       },
