@@ -86,3 +86,22 @@ it("BE-1 Webhook ingestion : 1. returns 200 and stores nothing when the refetche
   expect(requests).toHaveLength(1);
   expect(await db.order.count()).toBe(0);
 });
+
+it("BE-1 Webhook ingestion : 1. returns 401 for an invalid signature", async () => {
+  const requests = mockAdminGraphql(SHOP, fixtures.regular);
+
+  const response = await orders(
+    signedWebhookRequest({
+      path: "/webhooks/orders",
+      topic: "orders/create",
+      shop: SHOP,
+      body: { admin_graphql_api_id: ORDER_ID },
+      secret: "not-the-app-secret",
+    }),
+  ).catch((thrown: unknown) => thrown);
+
+  expect(response).toBeInstanceOf(Response);
+  expect((response as Response).status).toBe(401);
+  expect(requests).toHaveLength(0);
+  expect(await db.order.count()).toBe(0);
+});
