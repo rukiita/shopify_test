@@ -1,0 +1,87 @@
+{
+  "data": {
+    "order": {
+      "id": "gid://shopify/Order/6661012521115",
+      "name": "#1001",
+      "number": 1001,
+      "createdAt": "2026-10-31T06:33:06Z",
+      "updatedAt": "2026-11-01T03:25:55Z",
+      "email": "test.buyer+1@example.com",
+      "tags": [
+        "Snowboard"
+      ],
+      "paymentGatewayNames": [
+        "bogus"
+      ],
+      "currentTotalPriceSet": {
+        "shopMoney": {
+          "amount": "1349.95",
+          "currencyCode": "USD"
+        }
+      },
+      "customer": {
+        "firstName": "Test",
+        "lastName": "Buyer"
+      },
+      "shippingAddress": {
+        "formatted": [
+          "123 Test Street",
+          "Apt 4, Building B",
+          "San Francisco CA 94103",
+          "United States"
+        ]
+      },
+      "billingAddress": {
+        "formatted": [
+          "123 Test Street",
+          "Apt 4, Building B",
+          "San Francisco CA 94103",
+          "United States"
+        ]
+      },
+      "lineItems": {
+        "nodes": [
+          {
+            "id": "gid://shopify/LineItem/15126054502555",
+            "title": "The Collection Snowboard: Hydrogen",
+            "currentQuantity": 1,
+            "product": {
+              "id": "gid://shopify/Product/9478544261275",
+              "title": "The Collection Snowboard: Hydrogen",
+              "tags": [
+                "Accessory",
+                "Sport",
+                "Winter"
+              ]
+            }
+          },
+          {
+            "id": "gid://shopify/LineItem/15126054535323",
+            "title": "The Collection Snowboard: Liquid",
+            "currentQuantity": 1,
+            "product": {
+              "id": "gid://shopify/Product/9478544523419",
+              "title": "The Collection Snowboard: Liquid",
+              "tags": [
+                "Accessory",
+                "Sport",
+                "Winter"
+              ]
+            }
+          }
+        ]
+      }
+    }
+  },
+  "extensions": {
+    "cost": {
+      "requestedQueryCost": 28,
+      "actualQueryCost": 6,
+      "throttleStatus": {
+        "maximumAvailable": 2000,
+        "currentlyAvailable": 1994,
+        "restoreRate": 100
+      }
+    }
+  }
+}
