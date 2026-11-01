@@ -1,7 +1,10 @@
 import { beforeEach, expect, it } from "vitest";
 import db from "../../app/db.server";
 import { mapOrder, type MappedOrder } from "../../app/lib/domain/order-mapper";
-import { saveOrder } from "../../app/lib/repositories/order-repository.server";
+import {
+  redactCustomer,
+  saveOrder,
+} from "../../app/lib/repositories/order-repository.server";
 import { resetDatabase } from "../helpers/database";
 import { fixtureOrder, fixtures } from "../helpers/order-fixtures";
 import { createOfflineSession } from "../helpers/session";
@@ -171,4 +174,51 @@ it("BE-6 Fields not in order JSON : 2. overwrites a product stored before its up
     tags: JSON.stringify(["Accessory", "Sport", "Winter"]),
     shopifyUpdatedAt: new Date("2026-11-01T05:17:32Z"),
   });
+});
+
+it("BE-7 Whole app : 1. customers/redact keeps orders that are not listed and orders of another shop", async () => {
+  const OTHER_SHOP = "other-shop.myshopify.com";
+  await createOfflineSession(OTHER_SHOP);
+  // Listed, in the shop.
+  await saveOrder(mapOrder(SHOP, fixtureOrder(fixtures.productNull)));
+  // Not listed, in the shop.
+  await saveOrder(mapOrder(SHOP, fixtureOrder(fixtures.productChanged)));
+  // Listed, but in another shop.
+  await saveOrder(mapOrder(OTHER_SHOP, fixtureOrder(fixtures.regular)));
+
+  await redactCustomer(SHOP, [
+    "gid://shopify/Order/6662859882651",
+    "gid://shopify/Order/6663058751643",
+  ]);
+
+  expect(
+    await db.order.findMany({
+      orderBy: { id: "asc" },
+      select: {
+        id: true,
+        customerEmail: true,
+        customerFullName: true,
+        customerAddress: true,
+      },
+    }),
+  ).toEqual([
+    {
+      id: "gid://shopify/Order/6661012521115",
+      customerEmail: "test.buyer+1@example.com",
+      customerFullName: "Test Buyer",
+      customerAddress: expect.any(String),
+    },
+    {
+      id: "gid://shopify/Order/6662859882651",
+      customerEmail: null,
+      customerFullName: null,
+      customerAddress: null,
+    },
+    {
+      id: "gid://shopify/Order/6663058751643",
+      customerEmail: "test.buyer+1@example.com",
+      customerFullName: "Test Buyer",
+      customerAddress: expect.any(String),
+    },
+  ]);
 });
