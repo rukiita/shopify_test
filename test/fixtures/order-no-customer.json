@@ -1,0 +1,54 @@
+{
+  "data": {
+    "order": {
+      "id": "gid://shopify/Order/6662857195675",
+      "name": "#1002",
+      "number": 1002,
+      "createdAt": "2026-11-01T03:18:30Z",
+      "updatedAt": "2026-11-01T03:18:31Z",
+      "email": null,
+      "tags": [],
+      "paymentGatewayNames": [
+        "manual"
+      ],
+      "currentTotalPriceSet": {
+        "shopMoney": {
+          "amount": "24.95",
+          "currencyCode": "USD"
+        }
+      },
+      "customer": null,
+      "shippingAddress": null,
+      "billingAddress": null,
+      "lineItems": {
+        "nodes": [
+          {
+            "id": "gid://shopify/LineItem/15129290801307",
+            "title": "Selling Plans Ski Wax",
+            "currentQuantity": 1,
+            "product": {
+              "id": "gid://shopify/Product/9478544294043",
+              "title": "Selling Plans Ski Wax",
+              "tags": [
+                "Accessory",
+                "Sport",
+                "Winter"
+              ]
+            }
+          }
+        ]
+      }
+    }
+  },
+  "extensions": {
+    "cost": {
+      "requestedQueryCost": 28,
+      "actualQueryCost": 6,
+      "throttleStatus": {
+        "maximumAvailable": 2000,
+        "currentlyAvailable": 1994,
+        "restoreRate": 100
+      }
+    }
+  }
+}

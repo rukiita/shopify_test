@@ -1,0 +1,16 @@
+{
+  "data": {
+    "order": null
+  },
+  "extensions": {
+    "cost": {
+      "requestedQueryCost": 28,
+      "actualQueryCost": 1,
+      "throttleStatus": {
+        "maximumAvailable": 2000,
+        "currentlyAvailable": 1999,
+        "restoreRate": 100
+      }
+    }
+  }
+}
