@@ -39,7 +39,11 @@ const ordersById: Record<string, OrderQueryResponse> = Object.fromEntries(
 function mockStore(orders: Record<string, OrderQueryResponse> = ordersById) {
   return mockAdminGraphql(SHOP, (variables) => {
     if (typeof variables.id === "string") {
-      return orders[variables.id];
+      const order = orders[variables.id];
+      if (!order) {
+        throw new Error(`No order fixture for ${variables.id}`);
+      }
+      return order;
     }
     const after = variables.after;
     return after
