@@ -3,7 +3,8 @@
     "orders": {
       "nodes": [
         {
-          "id": "gid://shopify/Order/6662859882651"
+          "id": "gid://shopify/Order/6662859882651",
+          "updatedAt": "2026-11-01T03:21:16Z"
         }
       ],
       "pageInfo": {

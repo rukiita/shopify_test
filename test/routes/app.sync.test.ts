@@ -123,3 +123,24 @@ it("BE-1 Webhook ingestion : 3. a sync request with a session token not signed b
   expect(requests).toHaveLength(0);
   expect(await db.order.count()).toBe(0);
 });
+
+it("BE-1 Webhook ingestion : 3. a sync fetches only the orders whose stored copy is older than the listed updatedAt", async () => {
+  mockStore();
+  await sync(syncRequest());
+  // One order changed in Shopify since the first sync.
+  const changedId = fixtureOrder(fixtures.noCustomer).id;
+  await db.order.update({
+    where: { id: changedId },
+    data: { shopifyUpdatedAt: new Date("2026-11-01T00:00:00Z") },
+  });
+  const requests = mockStore();
+
+  const result = await sync(syncRequest());
+
+  expect(result).toEqual({ synced: 1 });
+  expect(
+    requests.flatMap((request) =>
+      typeof request.variables?.id === "string" ? [request.variables.id] : [],
+    ),
+  ).toEqual([changedId]);
+});
