@@ -222,3 +222,24 @@ it("BE-7 Whole app : 1. customers/redact keeps orders that are not listed and or
     },
   ]);
 });
+
+it("BE-7 Whole app : 1. keeps a redacted order's customer fields empty when the order is ingested again", async () => {
+  await saveOrder(current());
+  await redactCustomer(SHOP, [ORDER_ID]);
+  // A later orders/updated, fetched with the customer data still on the order.
+  const updated = current();
+  updated.order = {
+    ...updated.order,
+    tags: JSON.stringify(["Snowboard", "Shipped"]),
+    shopifyUpdatedAt: new Date("2026-11-02T00:00:00Z"),
+  };
+
+  await saveOrder(updated);
+
+  expect(await storedOrder()).toMatchObject({
+    tags: JSON.stringify(["Snowboard", "Shipped"]),
+    customerEmail: null,
+    customerFullName: null,
+    customerAddress: null,
+  });
+});
