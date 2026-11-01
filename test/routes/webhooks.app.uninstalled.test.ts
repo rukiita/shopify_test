@@ -80,3 +80,23 @@ it("BE-7 Whole app : 1. app/uninstalled deletes the shop's orders, line items an
     { shop: OTHER_SHOP },
   ]);
 });
+
+it("BE-7 Whole app : 1. a repeated app/uninstalled deletes the shop's data even without sessions", async () => {
+  // A first delivery deleted the sessions, then failed before deleting the data,
+  // so Shopify retries it.
+  await db.session.deleteMany();
+  await saveOrder(mapOrder(SHOP, fixtureOrder(fixtures.regular)));
+
+  const response = await uninstalled(
+    signedWebhookRequest({
+      path: "/webhooks/app/uninstalled",
+      topic: "app/uninstalled",
+      shop: SHOP,
+      body: {},
+    }),
+  );
+
+  expect(response.status).toBe(200);
+  expect(await db.order.count()).toBe(0);
+  expect(await db.product.count()).toBe(0);
+});
