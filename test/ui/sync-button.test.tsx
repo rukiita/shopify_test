@@ -24,3 +24,15 @@ it("BE-1 Webhook ingestion : 3. the Sync button is disabled while a sync runs an
   expect(button()?.hasAttribute("disabled")).toBe(false);
   expect(container.textContent).toContain("Imported 3 orders");
 });
+
+it("BE-1 Webhook ingestion : 3. the Sync button says how many orders were imported before a sync stopped", () => {
+  const { container } = render(
+    <SyncButton syncing={false} synced={2} failed onSync={noop} />,
+  );
+
+  const message = container.querySelector("s-text");
+  expect(message?.getAttribute("tone")).toBe("critical");
+  expect(message?.textContent).toBe(
+    "Sync stopped after importing 2 orders. Run it again to continue.",
+  );
+});
