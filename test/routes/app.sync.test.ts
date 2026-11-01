@@ -92,3 +92,30 @@ it("BE-1 Webhook ingestion : 3. a sync skips an order deleted before it is fetch
   expect(await db.order.findUnique({ where: { id: deletedId } })).toBeNull();
   expect(await db.order.count()).toBe(2);
 });
+
+it("BE-1 Webhook ingestion : 3. a sync request without a session token stores nothing", async () => {
+  const requests = mockStore();
+
+  const response = await sync(adminRequest("/app/sync", SHOP)).catch(
+    (thrown: unknown) => thrown,
+  );
+
+  // authenticate.admin treats it as a page load and throws a response that loads
+  // App Bridge to get a token, instead of running the action.
+  expect(response).toBeInstanceOf(Response);
+  expect(requests).toHaveLength(0);
+  expect(await db.order.count()).toBe(0);
+});
+
+it("BE-1 Webhook ingestion : 3. a sync request with a session token not signed by the app returns 401 and stores nothing", async () => {
+  const requests = mockStore();
+
+  const response = await sync(
+    adminRequest("/app/sync", SHOP, sessionToken(SHOP, "not-the-app-secret")),
+  ).catch((thrown: unknown) => thrown);
+
+  expect(response).toBeInstanceOf(Response);
+  expect((response as Response).status).toBe(401);
+  expect(requests).toHaveLength(0);
+  expect(await db.order.count()).toBe(0);
+});
