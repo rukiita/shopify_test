@@ -15,14 +15,16 @@ const REDACTED = {
 // The order and its line items are written unless the fetched updatedAt is older
 // than the stored one, so a fetch that finishes late cannot overwrite newer data.
 // Each product is checked the same way, by the product's own updatedAt.
+//
+// Returns whether the order was written.
 export async function saveOrder({ order, lineItems, products }: MappedOrder) {
-  await db.$transaction(async (tx) => {
+  return db.$transaction(async (tx) => {
     // app/uninstalled deletes the shop's data and sessions in one transaction
     // (deleteShopData). Checking the session in this transaction keeps a fetch that
     // was in flight during the uninstall from writing the data back.
     const sessions = await tx.session.count({ where: { shop: order.shop } });
     if (sessions === 0) {
-      return;
+      return false;
     }
 
     // Line items point to products, so products are written first. Each product
@@ -56,7 +58,7 @@ export async function saveOrder({ order, lineItems, products }: MappedOrder) {
     if (
       !shouldOverwrite(stored?.shopifyUpdatedAt ?? null, order.shopifyUpdatedAt)
     ) {
-      return;
+      return false;
     }
 
     if (stored) {
@@ -72,6 +74,7 @@ export async function saveOrder({ order, lineItems, products }: MappedOrder) {
     // Replaced as a set, so a line item removed from the order is removed here.
     await tx.lineItem.deleteMany({ where: { orderId: order.id } });
     await tx.lineItem.createMany({ data: lineItems });
+    return true;
   });
 }
 

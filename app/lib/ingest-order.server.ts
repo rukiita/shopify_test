@@ -6,7 +6,8 @@ import { ORDER_QUERY } from "./shopify/order-query";
 // The one ingestion path for an order, shared by the orders webhooks and the sync
 // of existing orders (ADR-0003): refetch via GraphQL, map, then write.
 //
-// Returns false when the order no longer exists in Shopify, so nothing was written.
+// Returns whether the order was written: not when it no longer exists in Shopify,
+// the shop has no session (uninstalled), or the stored copy is newer.
 export async function ingestOrder(
   admin: AdminApiContext,
   shop: string,
@@ -21,6 +22,5 @@ export async function ingestOrder(
     return false;
   }
 
-  await saveOrder(mapOrder(shop, data.order));
-  return true;
+  return saveOrder(mapOrder(shop, data.order));
 }
