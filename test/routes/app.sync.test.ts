@@ -36,8 +36,10 @@ const ordersById: Record<string, OrderQueryResponse> = Object.fromEntries(
 
 // Answers the page query with the next captured page, and the order query with the
 // fixture of the requested order (or `orders[id]` when given).
-function mockStore(orders: Record<string, OrderQueryResponse> = ordersById) {
-  return mockAdminGraphql(SHOP, (variables) => {
+function storeResponder(
+  orders: Record<string, OrderQueryResponse> = ordersById,
+) {
+  return (variables: Record<string, unknown>) => {
     if (typeof variables.id === "string") {
       const order = orders[variables.id];
       if (!order) {
@@ -52,7 +54,11 @@ function mockStore(orders: Record<string, OrderQueryResponse> = ordersById) {
             orderIdPages[index - 1]?.data.orders.pageInfo.endCursor === after,
         )
       : orderIdPages[0];
-  });
+  };
+}
+
+function mockStore(orders?: Record<string, OrderQueryResponse>) {
+  return mockAdminGraphql(SHOP, storeResponder(orders));
 }
 
 it("BE-1 Webhook ingestion : 3. a sync stores every order the orders query lists and returns the count", async () => {
@@ -207,4 +213,23 @@ it("BE-1 Webhook ingestion : 3. a sync whose access token Shopify rejects throws
 
   expect(thrown).toBeInstanceOf(Response);
   expect((thrown as Response).status).toBe(401);
+});
+
+it("BE-1 Webhook ingestion : 3. a sync retries a request that Shopify answers with 503", async () => {
+  const respond = storeResponder();
+  // The first page query and the first order query each get one 503.
+  const unavailable = new Set(["page", "order"]);
+  const requests = mockAdminGraphql(SHOP, (variables) => {
+    const kind = typeof variables.id === "string" ? "order" : "page";
+    if (unavailable.delete(kind)) {
+      return new Response("Service Unavailable", { status: 503 });
+    }
+    return respond(variables);
+  });
+
+  const result = await sync(syncRequest());
+
+  expect(result).toEqual({ synced: 3 });
+  // Two pages and three orders, plus one retry of each kind.
+  expect(requests).toHaveLength(7);
 });
