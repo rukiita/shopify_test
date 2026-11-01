@@ -87,6 +87,30 @@ it("BE-1 Webhook ingestion : 1. falls back to the billing address when there is 
   );
 });
 
+it("BE-6 Fields not in order JSON : 1. stores the line item product title", () => {
+  // The product was renamed after the order was placed.
+  const { lineItems, products } = mapOrder(
+    SHOP,
+    fixtureOrder(fixtures.productChanged),
+  );
+
+  // The product's own title is the current one (README, "Product title").
+  expect(products).toContainEqual(
+    expect.objectContaining({
+      id: "gid://shopify/Product/9478544261275",
+      title: "The Collection Snowboard: Hydrogen Changed",
+    }),
+  );
+  // The line item keeps the title at purchase, the fallback when there is no
+  // product.
+  expect(lineItems).toContainEqual(
+    expect.objectContaining({
+      productId: "gid://shopify/Product/9478544261275",
+      title: "The Collection Snowboard: Hydrogen",
+    }),
+  );
+});
+
 it("BE-6 Fields not in order JSON : 1. maps a line item whose product is null", () => {
   const { lineItems, products } = mapOrder(
     SHOP,
