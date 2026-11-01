@@ -55,6 +55,7 @@ it("BE-1 Webhook ingestion : 2. updates the products even when the order is not 
     ...resynced.products[0],
     title: "Compare at Price Snowboard",
     tags: JSON.stringify(["Sale"]),
+    shopifyUpdatedAt: new Date("2026-11-01T06:00:00Z"),
   };
 
   await saveOrder(resynced);

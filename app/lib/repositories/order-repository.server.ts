@@ -7,6 +7,7 @@ import { shouldOverwrite } from "../domain/should-overwrite";
 //
 // The order and its line items are written unless the fetched updatedAt is older
 // than the stored one, so a fetch that finishes late cannot overwrite newer data.
+// Each product is checked the same way, by the product's own updatedAt.
 export async function saveOrder({ order, lineItems, products }: MappedOrder) {
   await db.$transaction(async (tx) => {
     // app/uninstalled deletes the shop's data and sessions in one transaction
@@ -25,15 +26,18 @@ export async function saveOrder({ order, lineItems, products }: MappedOrder) {
         where: { id: product.id },
         select: { shopifyUpdatedAt: true },
       });
-      if (!storedProduct) {
-        await tx.product.create({ data: product });
-      } else if (
-        shouldOverwrite(
-          storedProduct.shopifyUpdatedAt,
+      if (
+        !shouldOverwrite(
+          storedProduct?.shopifyUpdatedAt ?? null,
           product.shopifyUpdatedAt,
         )
       ) {
+        continue;
+      }
+      if (storedProduct) {
         await tx.product.update({ where: { id: product.id }, data: product });
+      } else {
+        await tx.product.create({ data: product });
       }
     }
 
