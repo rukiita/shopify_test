@@ -7,7 +7,7 @@ import { fixtureOrder, fixtures } from "../helpers/order-fixtures";
 import { createOfflineSession } from "../helpers/session";
 
 const SHOP = "test-shop.myshopify.com";
-const ORDER_ID = "gid://shopify/Order/6661012521115";
+const ORDER_ID = "gid://shopify/Order/6663058751643";
 
 beforeEach(async () => {
   await resetDatabase();
@@ -24,7 +24,7 @@ const stale = (): MappedOrder => {
     order: {
       ...order,
       tags: JSON.stringify([]),
-      shopifyUpdatedAt: new Date("2026-10-31T06:33:08Z"),
+      shopifyUpdatedAt: new Date("2026-11-01T05:17:30Z"),
     },
     lineItems: lineItems.slice(0, 1),
     products: products.slice(0, 1),
@@ -53,7 +53,7 @@ it("BE-1 Webhook ingestion : 2. updates the products even when the order is not 
   const resynced = current();
   resynced.products[0] = {
     ...resynced.products[0],
-    title: "Hydrogen Snowboard",
+    title: "Compare at Price Snowboard",
     tags: JSON.stringify(["Sale"]),
   };
 
@@ -61,10 +61,10 @@ it("BE-1 Webhook ingestion : 2. updates the products even when the order is not 
 
   expect(
     await db.product.findUniqueOrThrow({
-      where: { id: "gid://shopify/Product/9478544261275" },
+      where: { id: "gid://shopify/Product/9478544359579" },
     }),
   ).toMatchObject({
-    title: "Hydrogen Snowboard",
+    title: "Compare at Price Snowboard",
     tags: JSON.stringify(["Sale"]),
   });
 });

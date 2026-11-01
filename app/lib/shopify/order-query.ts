@@ -44,6 +44,7 @@ export const ORDER_QUERY = `#graphql
             id
             title
             tags
+            updatedAt
           }
         }
       }

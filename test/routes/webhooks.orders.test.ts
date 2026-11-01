@@ -9,7 +9,7 @@ import { createOfflineSession } from "../helpers/session";
 import { signedWebhookRequest } from "../helpers/webhook";
 
 const SHOP = "test-shop.myshopify.com";
-const ORDER_ID = "gid://shopify/Order/6661012521115";
+const ORDER_ID = "gid://shopify/Order/6663058751643";
 
 beforeEach(async () => {
   await resetDatabase();
@@ -47,9 +47,9 @@ it("BE-1 Webhook ingestion : 1. stores the order and line items for a signed ord
   expect(order).toEqual({
     id: ORDER_ID,
     shop: SHOP,
-    name: "#1001",
-    number: 1001,
-    totalPriceMinor: 134995n,
+    name: "#1006",
+    number: 1006,
+    totalPriceMinor: 138595n,
     currencyCode: "USD",
     paymentGateways: JSON.stringify(["bogus"]),
     customerEmail: "test.buyer+1@example.com",
@@ -57,21 +57,21 @@ it("BE-1 Webhook ingestion : 1. stores the order and line items for a signed ord
     customerAddress:
       "123 Test Street, Apt 4, Building B, San Francisco CA 94103, United States",
     tags: JSON.stringify(["Snowboard"]),
-    shopifyCreatedAt: new Date("2026-10-31T06:33:06Z"),
-    shopifyUpdatedAt: new Date("2026-11-01T03:25:55Z"),
+    shopifyCreatedAt: new Date("2026-11-01T05:17:27Z"),
+    shopifyUpdatedAt: new Date("2026-11-01T05:24:39Z"),
     lineItems: [
       {
-        id: "gid://shopify/LineItem/15126054502555",
+        id: "gid://shopify/LineItem/15129586073755",
         orderId: ORDER_ID,
-        productId: "gid://shopify/Product/9478544261275",
-        title: "The Collection Snowboard: Hydrogen",
+        productId: "gid://shopify/Product/9478544359579",
+        title: "The Compare at Price Snowboard",
         quantity: 1,
       },
       {
-        id: "gid://shopify/LineItem/15126054535323",
+        id: "gid://shopify/LineItem/15129586106523",
         orderId: ORDER_ID,
-        productId: "gid://shopify/Product/9478544523419",
-        title: "The Collection Snowboard: Liquid",
+        productId: "gid://shopify/Product/9478544261275",
+        title: "The Collection Snowboard: Hydrogen",
         quantity: 1,
       },
     ],
@@ -150,21 +150,21 @@ it("BE-1 Webhook ingestion : 2. updates the stored order for a signed orders/upd
     data: {
       id: ORDER_ID,
       shop: SHOP,
-      name: "#1001",
-      number: 1001,
-      totalPriceMinor: 134995n,
+      name: "#1006",
+      number: 1006,
+      totalPriceMinor: 138595n,
       currencyCode: "USD",
       paymentGateways: JSON.stringify(["bogus"]),
       customerEmail: "test.buyer+1@example.com",
       customerFullName: "Test Buyer",
       customerAddress: "1 Old Street, San Francisco CA 94103, United States",
       tags: JSON.stringify([]),
-      shopifyCreatedAt: new Date("2026-10-31T06:33:06Z"),
-      shopifyUpdatedAt: new Date("2026-10-31T06:33:08Z"),
+      shopifyCreatedAt: new Date("2026-11-01T05:17:27Z"),
+      shopifyUpdatedAt: new Date("2026-11-01T05:17:30Z"),
       lineItems: {
         create: [
           {
-            id: "gid://shopify/LineItem/15126054502555",
+            id: "gid://shopify/LineItem/15129586106523",
             productId: "gid://shopify/Product/9478544261275",
             title: "The Collection Snowboard: Hydrogen",
             quantity: 1,
@@ -192,10 +192,10 @@ it("BE-1 Webhook ingestion : 2. updates the stored order for a signed orders/upd
     tags: JSON.stringify(["Snowboard"]),
     customerAddress:
       "123 Test Street, Apt 4, Building B, San Francisco CA 94103, United States",
-    shopifyUpdatedAt: new Date("2026-11-01T03:25:55Z"),
+    shopifyUpdatedAt: new Date("2026-11-01T05:24:39Z"),
   });
   expect(order.lineItems.map((lineItem) => lineItem.id)).toEqual([
-    "gid://shopify/LineItem/15126054502555",
-    "gid://shopify/LineItem/15126054535323",
+    "gid://shopify/LineItem/15129586073755",
+    "gid://shopify/LineItem/15129586106523",
   ]);
 });

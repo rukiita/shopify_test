@@ -1,6 +1,7 @@
 import type { OrderForIngestionQuery } from "../../app/types/admin.generated";
 import deletedOrder from "../fixtures/order-deleted.json";
 import noCustomerOrder from "../fixtures/order-no-customer.json";
+import productChangedOrder from "../fixtures/order-product-changed.json";
 import productNullOrder from "../fixtures/order-product-null.json";
 import regularOrder from "../fixtures/order-regular.json";
 
@@ -17,6 +18,8 @@ export const fixtures = {
   regular: response(regularOrder),
   noCustomer: response(noCustomerOrder),
   productNull: response(productNullOrder),
+  // Captured after one product was renamed and retagged and the other deleted.
+  productChanged: response(productChangedOrder),
   deleted: response(deletedOrder),
 };
 
