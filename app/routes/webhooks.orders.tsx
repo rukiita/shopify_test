@@ -7,7 +7,12 @@ import { authenticate } from "../shopify.server";
 export const action = async ({ request }: ActionFunctionArgs) => {
   const { admin, payload } = await authenticate.webhook(request);
 
-  const response = await admin!.graphql(ORDER_QUERY, {
+  // No offline session: the app was uninstalled, so there is nothing to fetch with.
+  if (!admin) {
+    return new Response();
+  }
+
+  const response = await admin.graphql(ORDER_QUERY, {
     variables: { id: payload.admin_graphql_api_id },
   });
   const { data } = await response.json();
