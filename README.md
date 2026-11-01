@@ -82,7 +82,7 @@ _(Database setup, running the tests, and the remaining steps are added in Step 8
 
 The database is SQLite, managed with Prisma (`prisma/schema.prisma`). Orders, line items and products are copies of Shopify data. Shopify owns the data ([ADR-0004](docs/adr/0004-sync-tags-to-shopify.md)). The copies are written in three ways:
 
-- **Ingestion:** an `orders/create` or `orders/updated` webhook, or the sync of existing orders (#21), refetches the order from the Admin API and upserts the order, its line items and their products. An order and its line items are written unless Shopify's `updatedAt` is older than the stored `shopifyUpdatedAt` (an equal value is written: `updatedAt` has one-second precision, so it can carry a later change made in the same second), a guard for two fetches of the same order running at the same time ([ADR-0003](docs/adr/0003-refetch-order-via-graphql.md)). Products are written on every ingestion
+- **Ingestion:** an `orders/create` or `orders/updated` webhook, or the sync of existing orders (#21), refetches the order from the Admin API and upserts the order, its line items and their products. An order and its line items are written unless Shopify's `updatedAt` is older than the stored `shopifyUpdatedAt` (an equal value is written: `updatedAt` has one-second precision, so it can carry a later change made in the same second), a guard for two fetches of the same order running at the same time ([ADR-0003](docs/adr/0003-refetch-order-via-graphql.md)). Each product is written the same way, unless the product's own `updatedAt` is older than its stored `shopifyUpdatedAt`: two orders with the same product can be ingested at the same time (#6)
 - **Tag edits:** adding or removing an order tag in the app writes to Shopify first, then to the database ([ADR-0004](docs/adr/0004-sync-tags-to-shopify.md))
 - **Deletion:** the app does not subscribe to Shopify's delete webhooks (`orders/delete`, `products/delete`), so deletions in Shopify are not received (see "Delete behaviour" under [Design choices](#design-choices))
 
@@ -118,6 +118,7 @@ erDiagram
     String shop
     String title
     String tags "JSON array"
+    DateTime shopifyUpdatedAt
   }
 ```
 
@@ -127,7 +128,7 @@ erDiagram
 |---|---|---|
 | `Order` | One row per Shopify order, scoped to a shop | `customerAddress` is one formatted string (shipping, falling back to billing) |
 | `LineItem` | One row per line item of an order | `productId` is null when the line item had no product the last time its order was ingested: a custom item, or a product already deleted in Shopify |
-| `Product` | One row per product seen on an ingested order, scoped to a shop | Title and tags as fetched with an order containing the product, written by each ingestion of such an order. `Product` has no timestamp, so when two such ingestions run at the same time, the older fetch can be written last (#6). `app/uninstalled` deletes a shop's products |
+| `Product` | One row per product seen on an ingested order, scoped to a shop | Title and tags as fetched with an order containing the product, written by each ingestion of such an order. `shopifyUpdatedAt` is the product's `updatedAt` in Shopify, so when two such ingestions run at the same time, the older fetch is not written over the newer one. `app/uninstalled` deletes a shop's products |
 | `Session` | Shopify OAuth sessions, from the app template | Unchanged from the template; not related to the other tables, so not in the diagram |
 
 ### Design choices
@@ -142,7 +143,7 @@ erDiagram
 
 **Delete behaviour.** The app subscribes to `orders/create`, `orders/updated`, `app/uninstalled` and `app/scopes_update`. None of them reports a deleted order or product, so a deletion in Shopify does not delete rows here. `app/uninstalled` deletes the shop's orders, line items, products and sessions, on every delivery of it. Shopify requires every public app, listed on the App Store or not, to subscribe to the compliance webhooks (`customers/data_request`, `customers/redact`, `shop/redact`). The app does not subscribe to them yet; #65 adds them.
 
-A product deleted in Shopify is expected to show up only on orders ingested again afterwards. For a deleted product the refetch is expected to return no product (`product: null`), so `productId` becomes null and the CSV falls back to the title at purchase. This is #6's reading of the API and is not yet confirmed with a captured response. Other orders containing that product keep showing its stored title and tags.
+A product deleted in Shopify shows up only on orders ingested again afterwards. For a deleted product the refetch returns no product (`product: null`, confirmed with a captured response in #6), so `productId` becomes null and the CSV falls back to the title at purchase. Other orders containing that product keep showing its stored title and tags.
 
 The foreign keys define what happens when a row is deleted in the app's database. Deleting an order deletes its line items (`onDelete: Cascade`). Deleting a product keeps its line items and sets their `productId` to null (`onDelete: SetNull`), so the order and the title at purchase stay in the CSV. `app/uninstalled` deletes a shop's orders (their line items go with them) and its products; #65 (`shop/redact`) will do the same.
 
@@ -173,7 +174,7 @@ The task lists *Product title* among the fields "not in order/id/.json". The ord
 
 ### Product tags: as fetched with an order containing the product
 
-Product tags are fetched together with the order whenever an order is ingested (`orders/create`, `orders/updated`, or a sync), and stored once per product. Each ingestion of an order containing the product writes them (see the `Product` row under [Database design](#database-design) for concurrent ingestions), so every line item linked to the product shows the same stored tags, not the tags as of its own order's ingestion. A line item with no product has an empty *Product tags* cell: unlike the title, no tags are recorded at purchase. The app does not update products from product webhooks or events, so a tag change on a product shows up the next time an order containing it is ingested. A product deleted in Shopify keeps its stored title and tags on orders that are not ingested again.
+Product tags are fetched together with the order whenever an order is ingested (`orders/create`, `orders/updated`, or a sync), and stored once per product. Each ingestion of an order containing the product writes them, unless the stored product is newer (see the `Product` row under [Database design](#database-design)), so every line item linked to the product shows the same stored tags, not the tags as of its own order's ingestion. A line item with no product has an empty *Product tags* cell: unlike the title, no tags are recorded at purchase. The app does not update products from product webhooks or events, so a tag change on a product shows up the next time an order containing it is ingested. A product deleted in Shopify keeps its stored title and tags on orders that are not ingested again.
 
 ### Customer address: shipping address, falling back to billing
 
