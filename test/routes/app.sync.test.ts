@@ -25,7 +25,7 @@ afterEach(resetAdminGraphql);
 const sync = (request: Request) =>
   action({ request, params: {}, context: {} } as ActionFunctionArgs);
 
-const syncRequest = () => adminRequest("/app/sync", SHOP, sessionToken(SHOP));
+const syncRequest = () => adminRequest("/app/sync", sessionToken(SHOP));
 
 // The orders listed in orderIdPages, by ID.
 const ordersById: Record<string, OrderQueryResponse> = Object.fromEntries(
@@ -96,7 +96,7 @@ it("BE-1 Webhook ingestion : 3. a sync skips an order deleted before it is fetch
 it("BE-1 Webhook ingestion : 3. a sync request without a session token stores nothing", async () => {
   const requests = mockStore();
 
-  const response = await sync(adminRequest("/app/sync", SHOP)).catch(
+  const response = await sync(adminRequest("/app/sync")).catch(
     (thrown: unknown) => thrown,
   );
 
@@ -111,7 +111,7 @@ it("BE-1 Webhook ingestion : 3. a sync request with a session token not signed b
   const requests = mockStore();
 
   const response = await sync(
-    adminRequest("/app/sync", SHOP, sessionToken(SHOP, "not-the-app-secret")),
+    adminRequest("/app/sync", sessionToken(SHOP, "not-the-app-secret")),
   ).catch((thrown: unknown) => thrown);
 
   expect(response).toBeInstanceOf(Response);

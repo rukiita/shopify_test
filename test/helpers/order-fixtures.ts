@@ -1,4 +1,7 @@
-import type { OrderForIngestionQuery } from "../../app/types/admin.generated";
+import type {
+  OrderForIngestionQuery,
+  OrderIdsForSyncQuery,
+} from "../../app/types/admin.generated";
 import deletedOrder from "../fixtures/order-deleted.json";
 import orderIdsPage1 from "../fixtures/order-ids-page-1.json";
 import orderIdsPage2 from "../fixtures/order-ids-page-2.json";
@@ -35,4 +38,7 @@ export function fixtureOrder(fixture: OrderQueryResponse) {
 // productChanged and noCustomer, then the order of productNull. Captured with
 // `first: 2` and a filter on those three IDs, so that the store's other orders do
 // not appear and the first page has a next page.
-export const orderIdPages = [orderIdsPage1, orderIdsPage2];
+export const orderIdPages: { data: OrderIdsForSyncQuery }[] = [
+  orderIdsPage1,
+  orderIdsPage2,
+];

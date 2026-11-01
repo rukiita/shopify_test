@@ -12,7 +12,7 @@ const base64url = (value: string | Buffer) =>
 
 // A session token as App Bridge sends it from the embedded app: a JWT signed with
 // HS256 and the app's secret, so `authenticate.admin` verifies it for real.
-export function sessionToken(shop: string, secret = TEST_API_SECRET) {
+export function sessionToken(shop: string, secret: string = TEST_API_SECRET) {
   const now = Math.floor(Date.now() / 1000);
   const header = base64url(JSON.stringify({ alg: "HS256", typ: "JWT" }));
   const payload = base64url(
@@ -35,7 +35,7 @@ export function sessionToken(shop: string, secret = TEST_API_SECRET) {
 }
 
 // A POST from the embedded app to an app route, e.g. `/app/sync`.
-export function adminRequest(path: string, shop: string, token?: string) {
+export function adminRequest(path: string, token?: string) {
   return new Request(new URL(path, TEST_APP_URL), {
     method: "POST",
     headers: token ? { Authorization: `Bearer ${token}` } : {},
