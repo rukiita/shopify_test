@@ -94,3 +94,32 @@ it("BE-6 Fields not in order JSON : 2. stores product tags on the Product", asyn
     tags: JSON.stringify(["Accessory", "Snowboard", "Sport", "Winter"]),
   });
 });
+
+it("BE-6 Fields not in order JSON : 2. keeps the stored product when the fetched product is older", async () => {
+  await saveOrder(current());
+  // Another order with the same product, fetched before the product was renamed
+  // and retagged, but written last.
+  const older = current();
+  older.products = older.products.map((product) =>
+    product.id === "gid://shopify/Product/9478544261275"
+      ? {
+          ...product,
+          title: "The Collection Snowboard: Hydrogen",
+          tags: JSON.stringify(["Accessory", "Sport", "Winter"]),
+          shopifyUpdatedAt: new Date("2026-11-01T05:17:32Z"),
+        }
+      : product,
+  );
+
+  await saveOrder(older);
+
+  expect(
+    await db.product.findUniqueOrThrow({
+      where: { id: "gid://shopify/Product/9478544261275" },
+    }),
+  ).toMatchObject({
+    title: "The Collection Snowboard: Hydrogen Changed",
+    tags: JSON.stringify(["Accessory", "Snowboard", "Sport", "Winter"]),
+    shopifyUpdatedAt: new Date("2026-11-01T05:20:01Z"),
+  });
+});
