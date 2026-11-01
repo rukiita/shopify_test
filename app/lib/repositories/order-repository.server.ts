@@ -88,8 +88,10 @@ export async function redactCustomer(shop: string, orderIds: string[]) {
 
 // Deletes every order, line item, product and session of a shop (app/uninstalled,
 // and shop/redact 48 hours later).
-// One transaction, so an ingestion that overlaps it either commits first (and is
-// deleted here), finds no session, or fails on the database lock and is retried.
+// One transaction. Writes run one at a time over one connection (#77), so an
+// ingestion that overlaps it either commits first (and is deleted here) or runs
+// after it and finds no session. One that cannot start within Prisma's transaction
+// wait fails and is retried by Shopify.
 export async function deleteShopData(shop: string) {
   await db.$transaction([
     // Line items go with their orders (onDelete: Cascade).

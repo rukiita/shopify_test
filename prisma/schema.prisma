@@ -8,9 +8,12 @@ generator client {
 // Note that some adapters may set a maximum length for the String type by default, please ensure your strings are long
 // enough when changing adapters.
 // See https://www.prisma.io/docs/orm/reference/prisma-schema-reference#string for more information
+// connection_limit=1: database writes run one at a time, so concurrent order
+// webhooks wait for each other instead of failing on the SQLite lock (#77,
+// ADR-0005). app/db.server.ts adds the same parameter to a DATABASE_URL override.
 datasource db {
   provider = "sqlite"
-  url      = "file:dev.sqlite"
+  url      = "file:dev.sqlite?connection_limit=1"
 }
 
 model Session {

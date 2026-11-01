@@ -2,7 +2,7 @@ import type { ActionFunctionArgs } from "react-router";
 import { afterEach, beforeEach, expect, it } from "vitest";
 import db from "../../app/db.server";
 import { action } from "../../app/routes/webhooks.orders";
-import { fixtures } from "../helpers/order-fixtures";
+import { fixtureOrder, fixtures } from "../helpers/order-fixtures";
 import { mockAdminGraphql, resetAdminGraphql } from "../helpers/admin-graphql";
 import { resetDatabase } from "../helpers/database";
 import { createOfflineSession } from "../helpers/session";
@@ -234,4 +234,45 @@ it("BE-6 Fields not in order JSON : 1. stores product title and tags for a signe
     // The deleted product comes back as product: null.
     { productId: null, title: "The Collection Snowboard: Liquid" },
   ]);
+});
+
+it("BE-1 Webhook ingestion : 1. stores every order when several signed orders/create webhooks arrive at the same time", async () => {
+  // A burst of new orders (#77). Each one is the regular fixture with its own order
+  // and line item IDs. They share the fixture's two products.
+  const ORDER_COUNT = 10;
+  const orderIds = Array.from(
+    { length: ORDER_COUNT },
+    (_, index) => `gid://shopify/Order/${1000 + index}`,
+  );
+  const regular = fixtureOrder(fixtures.regular);
+  mockAdminGraphql(SHOP, ({ id }) => ({
+    ...fixtures.regular,
+    data: {
+      order: {
+        ...regular,
+        id,
+        lineItems: {
+          nodes: regular.lineItems.nodes.map((lineItem, index) => ({
+            ...lineItem,
+            id: `gid://shopify/LineItem/${Number(String(id).split("/").pop()) * 100 + index}`,
+          })),
+        },
+      },
+    },
+  }));
+
+  const responses = await Promise.all(
+    orderIds.map((orderId) => orders(orderWebhook("orders/create", orderId))),
+  );
+
+  expect(responses.map((response) => response.status)).toEqual(
+    orderIds.map(() => 200),
+  );
+  expect(
+    (
+      await db.order.findMany({ select: { id: true }, orderBy: { id: "asc" } })
+    ).map((order) => order.id),
+  ).toEqual([...orderIds].sort());
+  expect(await db.lineItem.count()).toBe(ORDER_COUNT * 2);
+  expect(await db.product.count()).toBe(2);
 });
