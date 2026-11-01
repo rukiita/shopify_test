@@ -36,3 +36,12 @@ export async function saveOrder({ order, lineItems, products }: MappedOrder) {
     await tx.lineItem.createMany({ data: lineItems });
   });
 }
+
+// Deletes every order, line item and product of a shop (app/uninstalled).
+export async function deleteShopData(shop: string) {
+  await db.$transaction([
+    // Line items go with their orders (onDelete: Cascade).
+    db.order.deleteMany({ where: { shop } }),
+    db.product.deleteMany({ where: { shop } }),
+  ]);
+}
