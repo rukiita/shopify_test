@@ -21,20 +21,21 @@ export async function saveOrder({ order, lineItems, products }: MappedOrder) {
     // Line items point to products, so products are written first. Each product
     // has its own updatedAt check: two orders with the same product can be
     // ingested at once, and the older fetch may finish last.
+    // One read for all of them: an order can have up to 250 line items.
+    const storedProducts = new Map(
+      (
+        await tx.product.findMany({
+          where: { id: { in: products.map((product) => product.id) } },
+          select: { id: true, shopifyUpdatedAt: true },
+        })
+      ).map((stored) => [stored.id, stored.shopifyUpdatedAt]),
+    );
     for (const product of products) {
-      const storedProduct = await tx.product.findUnique({
-        where: { id: product.id },
-        select: { shopifyUpdatedAt: true },
-      });
-      if (
-        !shouldOverwrite(
-          storedProduct?.shopifyUpdatedAt ?? null,
-          product.shopifyUpdatedAt,
-        )
-      ) {
+      const storedUpdatedAt = storedProducts.get(product.id) ?? null;
+      if (!shouldOverwrite(storedUpdatedAt, product.shopifyUpdatedAt)) {
         continue;
       }
-      if (storedProduct) {
+      if (storedUpdatedAt) {
         await tx.product.update({ where: { id: product.id }, data: product });
       } else {
         await tx.product.create({ data: product });
