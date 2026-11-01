@@ -13,10 +13,9 @@ interface GraphqlRequestBody {
 // Every Admin GraphQL request to `shop` gets `response` (a fixture), or what
 // `response` returns for the request's variables when it is a function. Any other
 // request throws. Returns the bodies sent, so a test can check the variables.
-export function mockAdminGraphql(
-  shop: string,
-  response: unknown | ((variables: Record<string, unknown>) => unknown),
-) {
+type Responder = (variables: Record<string, unknown>) => unknown;
+
+export function mockAdminGraphql(shop: string, response: object | Responder) {
   const endpoint = `https://${shop}/admin/api/${apiVersion}/graphql.json`;
   const requests: GraphqlRequestBody[] = [];
 
@@ -28,7 +27,9 @@ export function mockAdminGraphql(
     const body: GraphqlRequestBody = JSON.parse(String(init.body));
     requests.push(body);
     const responseBody =
-      typeof response === "function" ? response(body.variables ?? {}) : response;
+      typeof response === "function"
+        ? (response as Responder)(body.variables ?? {})
+        : response;
     return new Response(JSON.stringify(responseBody), {
       headers: { "Content-Type": "application/json" },
     });

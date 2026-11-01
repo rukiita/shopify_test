@@ -269,8 +269,9 @@ it("BE-1 Webhook ingestion : 1. stores every order when several signed orders/cr
     orderIds.map(() => 200),
   );
   expect(
-    (await db.order.findMany({ select: { id: true }, orderBy: { id: "asc" } }))
-      .map((order) => order.id),
+    (
+      await db.order.findMany({ select: { id: true }, orderBy: { id: "asc" } })
+    ).map((order) => order.id),
   ).toEqual([...orderIds].sort());
   expect(await db.lineItem.count()).toBe(ORDER_COUNT * 2);
   expect(await db.product.count()).toBe(2);
