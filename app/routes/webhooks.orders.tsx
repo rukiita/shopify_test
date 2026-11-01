@@ -1,11 +1,13 @@
 import type { ActionFunctionArgs } from "react-router";
+import { mapOrder } from "../lib/domain/order-mapper";
+import { saveOrder } from "../lib/repositories/order-repository.server";
 import { ORDER_QUERY } from "../lib/shopify/order-query";
 import { authenticate } from "../shopify.server";
 
 // orders/create and orders/updated (shopify.app.toml). The payload is only a
 // trigger: the order is refetched via GraphQL (ADR-0003).
 export const action = async ({ request }: ActionFunctionArgs) => {
-  const { admin, payload } = await authenticate.webhook(request);
+  const { admin, payload, shop } = await authenticate.webhook(request);
 
   // No offline session: the app was uninstalled, so there is nothing to fetch with.
   if (!admin) {
@@ -23,5 +25,6 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     return new Response();
   }
 
+  await saveOrder(mapOrder(shop, data.order));
   return new Response();
 };
