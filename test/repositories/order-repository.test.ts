@@ -1,0 +1,44 @@
+import { beforeEach, expect, it } from "vitest";
+import db from "../../app/db.server";
+import { mapOrder, type MappedOrder } from "../../app/lib/domain/order-mapper";
+import { saveOrder } from "../../app/lib/repositories/order-repository.server";
+import { resetDatabase } from "../helpers/database";
+import { fixtureOrder, fixtures } from "../helpers/order-fixtures";
+
+const SHOP = "test-shop.myshopify.com";
+const ORDER_ID = "gid://shopify/Order/6661012521115";
+
+beforeEach(resetDatabase);
+
+const current = () => mapOrder(SHOP, fixtureOrder(fixtures.regular));
+
+// The same order as fetched earlier, before a tag was added and the second line
+// item existed.
+const stale = (): MappedOrder => {
+  const { order, lineItems, products } = current();
+  return {
+    order: {
+      ...order,
+      tags: JSON.stringify([]),
+      shopifyUpdatedAt: new Date("2026-10-31T06:33:08Z"),
+    },
+    lineItems: lineItems.slice(0, 1),
+    products: products.slice(0, 1),
+  };
+};
+
+const storedOrder = () =>
+  db.order.findUniqueOrThrow({
+    where: { id: ORDER_ID },
+    include: { lineItems: { orderBy: { id: "asc" } } },
+  });
+
+it("BE-1 Webhook ingestion : 2. ignores a stale webhook that arrives late", async () => {
+  await saveOrder(current());
+  const before = await storedOrder();
+
+  await saveOrder(stale());
+
+  expect(await storedOrder()).toEqual(before);
+  expect(before.lineItems).toHaveLength(2);
+});
