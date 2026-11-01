@@ -1,8 +1,12 @@
 import db from "../../db.server";
 import type { MappedOrder } from "../domain/order-mapper";
+import { shouldOverwrite } from "../domain/should-overwrite";
 
 // Writes one ingested order. Primary keys are Shopify GIDs, so writing the same
 // order again updates the same rows instead of adding new ones.
+//
+// The order and its line items are written only if the fetched updatedAt is newer
+// than the stored one, so a fetch that finishes late cannot overwrite newer data.
 export async function saveOrder({ order, lineItems, products }: MappedOrder) {
   await db.$transaction(async (tx) => {
     // Line items point to products, so products are written first.
@@ -12,6 +16,14 @@ export async function saveOrder({ order, lineItems, products }: MappedOrder) {
         create: product,
         update: product,
       });
+    }
+
+    const stored = await tx.order.findUnique({
+      where: { id: order.id },
+      select: { shopifyUpdatedAt: true },
+    });
+    if (!shouldOverwrite(stored?.shopifyUpdatedAt ?? null, order.shopifyUpdatedAt)) {
+      return;
     }
 
     await tx.order.upsert({
