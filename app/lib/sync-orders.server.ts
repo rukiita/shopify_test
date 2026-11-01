@@ -1,13 +1,17 @@
 import type { AdminApiContext } from "@shopify/shopify-app-react-router/server";
 import { ingestOrder } from "./ingest-order.server";
+import { findStoredUpdatedAt } from "./repositories/order-repository.server";
 import { ORDER_IDS_QUERY } from "./shopify/order-ids-query";
 
 // Imports the shop's existing orders (#21): pages through their IDs and ingests
-// each one as a webhook would. Returns how many orders were ingested.
+// each one that changed since it was stored, as a webhook would. Returns how many
+// orders were ingested.
+//
+// An order whose stored copy is as new as the listed updatedAt is not fetched
+// again. So a sync that stopped partway, and is run again, only fetches the
+// orders it has not stored yet.
 //
 // One order at a time, like the webhooks: writes are serialized anyway (#77).
-// A failed fetch throws, and the orders ingested before it stay; ingesting an
-// order again is idempotent, so the sync can be run again.
 export async function syncOrders(admin: AdminApiContext, shop: string) {
   let synced = 0;
   let after: string | null | undefined;
@@ -18,7 +22,15 @@ export async function syncOrders(admin: AdminApiContext, shop: string) {
     const { data } = await response.json();
     const orders = data!.orders;
 
-    for (const { id } of orders.nodes) {
+    const stored = await findStoredUpdatedAt(
+      shop,
+      orders.nodes.map((order) => order.id),
+    );
+    for (const { id, updatedAt } of orders.nodes) {
+      const storedUpdatedAt = stored.get(id);
+      if (storedUpdatedAt && storedUpdatedAt >= new Date(updatedAt)) {
+        continue;
+      }
       // Deleted since it was listed: not stored, not counted.
       if (await ingestOrder(admin, shop, id)) {
         synced += 1;

@@ -75,6 +75,16 @@ export async function saveOrder({ order, lineItems, products }: MappedOrder) {
   });
 }
 
+// The stored shopifyUpdatedAt of the given orders of a shop, by order ID. Orders
+// not stored here are missing from the map.
+export async function findStoredUpdatedAt(shop: string, orderIds: string[]) {
+  const stored = await db.order.findMany({
+    where: { shop, id: { in: orderIds } },
+    select: { id: true, shopifyUpdatedAt: true },
+  });
+  return new Map(stored.map((order) => [order.id, order.shopifyUpdatedAt]));
+}
+
 // Removes the customer's email, name and address from the given orders of a shop
 // (customers/redact), and marks the orders so that a later ingestion does not
 // write them back. The order, its line items and tags stay. Orders not stored
