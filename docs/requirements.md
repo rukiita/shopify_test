@@ -82,7 +82,7 @@ it("BE-3 Add tag : 1. trims surrounding whitespace", ...);
 
 | No. | Feature | Spec numbers |
 |---|---|---|
-| 1 | Webhook ingestion | 1 = create (orders/create) / 2 = update (orders/updated) |
+| 1 | Webhook ingestion | 1 = create (orders/create) / 2 = update (orders/updated) / 3 = sync of existing orders (#21), which uses the same ingestion path |
 | 2 | Order list | 1 = the order list is displayed (columns decided in DEC-6) |
 | 3 | Add tag | 1 = a tag can be added to an order |
 | 4 | Remove tag | 1 = a tag can be removed from an order |
