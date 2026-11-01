@@ -49,8 +49,11 @@ it("BE-1 Webhook ingestion : 2. ignores a stale webhook that arrives late", asyn
 
 it("BE-1 Webhook ingestion : 2. updates the products even when the order is not overwritten", async () => {
   await saveOrder(current());
-  // Same order version, but the product was renamed and retagged since.
+  // A late fetch whose order is older than the stored one, so the order is not
+  // written, but whose product was renamed and retagged since. Products are
+  // checked on their own updatedAt, not the order's.
   const resynced = current();
+  resynced.order = stale().order;
   resynced.products[0] = {
     ...resynced.products[0],
     title: "Compare at Price Snowboard",
