@@ -70,3 +70,38 @@ it("BE-1 Webhook ingestion : 1. maps an order without a customer", () => {
     totalPriceMinor: 2495n,
   });
 });
+
+it("BE-1 Webhook ingestion : 1. falls back to the billing address when there is no shipping address", () => {
+  // The captured order with its shipping address removed and another billing
+  // address, so the two cannot be confused.
+  const order = {
+    ...fixtureOrder(fixtures.regular),
+    shippingAddress: null,
+    billingAddress: {
+      formatted: ["1 Billing Street", "Ottawa ON K1A 0A1", "Canada"],
+    },
+  };
+
+  expect(mapOrder(SHOP, order).order.customerAddress).toBe(
+    "1 Billing Street, Ottawa ON K1A 0A1, Canada",
+  );
+});
+
+it("BE-6 Fields not in order JSON : 1. maps a line item whose product is null", () => {
+  const { lineItems, products } = mapOrder(
+    SHOP,
+    fixtureOrder(fixtures.productNull),
+  );
+
+  expect(lineItems).toContainEqual({
+    id: "gid://shopify/LineItem/15129295716507",
+    orderId: "gid://shopify/Order/6662859882651",
+    productId: null,
+    title: "テスト",
+    quantity: 1,
+  });
+  // Only the other line item's product.
+  expect(products.map((product) => product.id)).toEqual([
+    "gid://shopify/Product/9478544294043",
+  ]);
+});
