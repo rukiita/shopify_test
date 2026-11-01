@@ -8,9 +8,12 @@ import { authenticate } from "../shopify.server";
 export const action = async ({ request }: ActionFunctionArgs) => {
   const { payload, shop } = await authenticate.webhook(request);
 
-  const orderIds = (payload.orders_to_redact as number[]).map(
-    (id) => `gid://shopify/Order/${id}`,
-  );
+  // A missing list is treated as empty, so the request is still acknowledged
+  // instead of failing on every retry.
+  const listed: number[] = Array.isArray(payload.orders_to_redact)
+    ? payload.orders_to_redact
+    : [];
+  const orderIds = listed.map((id) => `gid://shopify/Order/${id}`);
   await redactCustomer(shop, orderIds);
 
   return new Response();
