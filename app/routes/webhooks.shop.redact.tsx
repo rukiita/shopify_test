@@ -6,13 +6,20 @@ import { authenticate } from "../shopify.server";
 // the app is uninstalled. app/uninstalled has normally deleted the shop's data
 // already; this deletes whatever is left, and is harmless when nothing is.
 export const action = async ({ request }: ActionFunctionArgs) => {
-  const { payload, shop } = await authenticate.webhook(request);
+  const { payload, session, shop } = await authenticate.webhook(request);
 
   // The shop comes from the X-Shopify-Shop-Domain header, which the HMAC does
   // not cover. The signed body names the shop too, so a body signed for one shop
   // cannot be resent for another.
   if (payload.shop_domain !== shop) {
     return new Response(undefined, { status: 401 });
+  }
+
+  // app/uninstalled deletes the shop's sessions, so a session here means the app
+  // was installed again within the 48 hours. Shopify's docs do not say whether a
+  // reinstall cancels shop/redact; the data now belongs to the new install.
+  if (session) {
+    return new Response();
   }
 
   await deleteShopData(shop);
