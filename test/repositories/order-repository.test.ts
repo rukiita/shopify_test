@@ -80,3 +80,17 @@ it("BE-1 Webhook ingestion : 1. stores nothing when the shop was uninstalled dur
   expect(await db.lineItem.count()).toBe(0);
   expect(await db.product.count()).toBe(0);
 });
+
+it("BE-6 Fields not in order JSON : 2. stores product tags on the Product", async () => {
+  // The product was retagged after the order was placed.
+  await saveOrder(mapOrder(SHOP, fixtureOrder(fixtures.productChanged)));
+
+  expect(
+    await db.product.findUniqueOrThrow({
+      where: { id: "gid://shopify/Product/9478544261275" },
+      select: { tags: true },
+    }),
+  ).toEqual({
+    tags: JSON.stringify(["Accessory", "Snowboard", "Sport", "Winter"]),
+  });
+});
