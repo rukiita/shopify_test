@@ -160,3 +160,51 @@ it("BE-1 Webhook ingestion : 3. a sync does not count orders it did not write be
   expect(result).toEqual({ synced: 0 });
   expect(await db.order.count()).toBe(0);
 });
+
+// The error Shopify returns, with HTTP 200, when a query exceeds the rate limit
+// (https://shopify.dev/docs/api/usage/response-codes). Not captured: written from
+// the documented code.
+const THROTTLED = {
+  errors: [{ message: "Throttled", extensions: { code: "THROTTLED" } }],
+};
+
+it("BE-1 Webhook ingestion : 3. a sync that fails partway keeps the orders it wrote, reports the failure, and continues when run again", async () => {
+  mockAdminGraphql(SHOP, (variables) =>
+    typeof variables.id === "string"
+      ? ordersById[variables.id]
+      : variables.after
+        ? THROTTLED
+        : orderIdPages[0],
+  );
+
+  const failed = await sync(syncRequest());
+
+  expect(failed).toEqual({ synced: 2, failed: true });
+  expect(await db.order.count()).toBe(2);
+
+  const requests = mockStore();
+  const rerun = await sync(syncRequest());
+
+  expect(rerun).toEqual({ synced: 1 });
+  expect(
+    requests.flatMap((request) =>
+      typeof request.variables?.id === "string" ? [request.variables.id] : [],
+    ),
+  ).toEqual([fixtureOrder(fixtures.productNull).id]);
+});
+
+it("BE-1 Webhook ingestion : 3. a sync whose access token Shopify rejects throws the 401 that makes App Bridge retry", async () => {
+  mockAdminGraphql(
+    SHOP,
+    () =>
+      new Response(JSON.stringify({ errors: "Invalid API key or access token" }), {
+        status: 401,
+        headers: { "Content-Type": "application/json" },
+      }),
+  );
+
+  const thrown = await sync(syncRequest()).catch((error: unknown) => error);
+
+  expect(thrown).toBeInstanceOf(Response);
+  expect((thrown as Response).status).toBe(401);
+});
