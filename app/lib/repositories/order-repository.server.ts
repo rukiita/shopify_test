@@ -63,6 +63,20 @@ export async function saveOrder({ order, lineItems, products }: MappedOrder) {
   });
 }
 
+// Removes the customer's email, name and address from the given orders of a shop
+// (customers/redact). The order, its line items and tags stay. Orders not stored
+// here are skipped.
+export async function redactCustomer(shop: string, orderIds: string[]) {
+  await db.order.updateMany({
+    where: { shop, id: { in: orderIds } },
+    data: {
+      customerEmail: null,
+      customerFullName: null,
+      customerAddress: null,
+    },
+  });
+}
+
 // Deletes every order, line item, product and session of a shop (app/uninstalled).
 // One transaction, so an ingestion that overlaps it either commits first (and is
 // deleted here), finds no session, or fails on the database lock and is retried.
