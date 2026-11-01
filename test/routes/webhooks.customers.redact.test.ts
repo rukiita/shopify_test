@@ -91,3 +91,22 @@ it("BE-7 Whole app : 1. customers/redact redacts even when the shop has no sessi
     customerAddress: null,
   });
 });
+
+it("BE-7 Whole app : 1. customers/redact returns 200 and changes nothing when orders_to_redact is missing", async () => {
+  await saveOrder(mapOrder(SHOP, fixtureOrder(fixtures.regular)));
+  const before = await storedOrder(LISTED_ORDER_ID);
+  const withoutOrders: Partial<typeof redactPayload> = { ...redactPayload };
+  delete withoutOrders.orders_to_redact;
+
+  const response = await redact(
+    signedWebhookRequest({
+      path: "/webhooks/customers/redact",
+      topic: "customers/redact",
+      shop: SHOP,
+      body: withoutOrders,
+    }),
+  );
+
+  expect(response.status).toBe(200);
+  expect(await storedOrder(LISTED_ORDER_ID)).toEqual(before);
+});
