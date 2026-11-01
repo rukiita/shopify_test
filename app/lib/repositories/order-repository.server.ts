@@ -5,7 +5,7 @@ import { shouldOverwrite } from "../domain/should-overwrite";
 // Writes one ingested order. Primary keys are Shopify GIDs, so writing the same
 // order again updates the same rows instead of adding new ones.
 //
-// The order and its line items are written only if the fetched updatedAt is newer
+// The order and its line items are written unless the fetched updatedAt is older
 // than the stored one, so a fetch that finishes late cannot overwrite newer data.
 export async function saveOrder({ order, lineItems, products }: MappedOrder) {
   await db.$transaction(async (tx) => {

@@ -1,6 +1,7 @@
 // Whether a fetched order may overwrite the stored copy, by Shopify's updatedAt.
-// `stored` is null when the order is not stored yet. Equal is not newer: the
-// stored copy already has that version, and a stale fetch must never win.
+// `stored` is null when the order is not stored yet. Only an older fetch is
+// skipped: updatedAt has one-second precision, so an equal value can still carry
+// a later change made in the same second.
 export function shouldOverwrite(stored: Date | null, fetched: Date): boolean {
-  return stored === null || fetched.getTime() > stored.getTime();
+  return stored === null || fetched.getTime() >= stored.getTime();
 }
