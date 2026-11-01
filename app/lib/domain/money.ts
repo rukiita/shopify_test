@@ -6,6 +6,9 @@ export function toMinorUnits(amount: string, currencyCode: string): bigint {
     style: "currency",
     currency: currencyCode,
   }).resolvedOptions().maximumFractionDigits;
+  if (fractionDigits === undefined) {
+    throw new Error(`Unknown number of decimals for ${currencyCode}`);
+  }
 
   const match = /^(-?\d+)(?:\.(\d+))?$/.exec(amount);
   if (!match) {
