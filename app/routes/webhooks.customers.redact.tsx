@@ -6,7 +6,9 @@ import { authenticate } from "../shopify.server";
 // after a merchant requests the deletion of a customer's data. The payload lists
 // the customer's orders by numeric ID; the app stores them by GID.
 export const action = async ({ request }: ActionFunctionArgs) => {
-  const { payload, shop } = await authenticate.webhook(request);
+  const { payload, shop, topic } = await authenticate.webhook(request);
+
+  console.log(`Received ${topic} webhook for ${shop}`);
 
   // The shop comes from the X-Shopify-Shop-Domain header, which the HMAC does
   // not cover. The signed body names the shop too, so a body signed for one shop
