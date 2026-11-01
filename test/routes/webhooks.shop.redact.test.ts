@@ -21,11 +21,14 @@ beforeEach(async () => {
 const shopRedact = (request: Request) =>
   action({ request, params: {}, context: {} } as ActionFunctionArgs);
 
-it("BE-7 Whole app : 1. shop/redact deletes the shop's orders, line items, products and sessions", async () => {
+it("BE-7 Whole app : 1. shop/redact deletes the shop's orders, line items and products", async () => {
   await saveOrder(mapOrder(SHOP, fixtureOrder(fixtures.regular)));
   // Another shop's order, with other products.
   await createOfflineSession(OTHER_SHOP);
   await saveOrder(mapOrder(OTHER_SHOP, fixtureOrder(fixtures.noCustomer)));
+  // app/uninstalled deleted the shop's session; its data is left, e.g. written
+  // by an ingestion that committed just before the uninstall.
+  await db.session.deleteMany({ where: { shop: SHOP } });
 
   const response = await shopRedact(
     signedWebhookRequest({
@@ -88,4 +91,24 @@ it("BE-7 Whole app : 1. shop/redact returns 401 and keeps the data when the payl
   expect(response.status).toBe(401);
   expect(await db.order.count({ where: { shop: OTHER_SHOP } })).toBe(1);
   expect(await db.product.count({ where: { shop: OTHER_SHOP } })).toBe(2);
+});
+
+it("BE-7 Whole app : 1. shop/redact keeps the shop's data when the app was installed again", async () => {
+  // Reinstalled within the 48 hours before shop/redact: a new offline session,
+  // and orders ingested since.
+  await saveOrder(mapOrder(SHOP, fixtureOrder(fixtures.regular)));
+
+  const response = await shopRedact(
+    signedWebhookRequest({
+      path: "/webhooks/shop/redact",
+      topic: "shop/redact",
+      shop: SHOP,
+      body: shopRedactPayload,
+    }),
+  );
+
+  expect(response.status).toBe(200);
+  expect(await db.session.count({ where: { shop: SHOP } })).toBe(1);
+  expect(await db.order.count()).toBe(1);
+  expect(await db.product.count()).toBe(2);
 });
