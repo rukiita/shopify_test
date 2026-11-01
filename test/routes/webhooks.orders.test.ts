@@ -105,3 +105,15 @@ it("BE-1 Webhook ingestion : 1. returns 401 for an invalid signature", async () 
   expect(requests).toHaveLength(0);
   expect(await db.order.count()).toBe(0);
 });
+
+it("BE-1 Webhook ingestion : 1. returns 200 and stores nothing when the shop has no session", async () => {
+  // A delivery that arrives after app/uninstalled deleted the session.
+  await db.session.deleteMany();
+  const requests = mockAdminGraphql(SHOP, fixtures.regular);
+
+  const response = await orders(orderWebhook("orders/create", ORDER_ID));
+
+  expect(response.status).toBe(200);
+  expect(requests).toHaveLength(0);
+  expect(await db.order.count()).toBe(0);
+});
