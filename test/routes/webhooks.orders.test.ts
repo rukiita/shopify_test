@@ -199,3 +199,37 @@ it("BE-1 Webhook ingestion : 2. updates the stored order for a signed orders/upd
     "gid://shopify/LineItem/15129586106523",
   ]);
 });
+
+it("BE-6 Fields not in order JSON : 1. stores product title and tags for a signed orders/create webhook", async () => {
+  // #1001 after one of its products was renamed and retagged, and the other deleted.
+  mockAdminGraphql(SHOP, fixtures.productChanged);
+
+  const response = await orders(
+    orderWebhook("orders/create", "gid://shopify/Order/6661012521115"),
+  );
+
+  expect(response.status).toBe(200);
+  expect(await db.product.findMany()).toEqual([
+    {
+      id: "gid://shopify/Product/9478544261275",
+      shop: SHOP,
+      title: "The Collection Snowboard: Hydrogen Changed",
+      tags: JSON.stringify(["Accessory", "Snowboard", "Sport", "Winter"]),
+      shopifyUpdatedAt: new Date("2026-11-01T05:20:01Z"),
+    },
+  ]);
+  expect(
+    await db.lineItem.findMany({
+      orderBy: { id: "asc" },
+      select: { productId: true, title: true },
+    }),
+  ).toEqual([
+    // The line item keeps the title at purchase.
+    {
+      productId: "gid://shopify/Product/9478544261275",
+      title: "The Collection Snowboard: Hydrogen",
+    },
+    // The deleted product comes back as product: null.
+    { productId: null, title: "The Collection Snowboard: Liquid" },
+  ]);
+});
