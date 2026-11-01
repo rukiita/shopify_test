@@ -144,3 +144,19 @@ it("BE-1 Webhook ingestion : 3. a sync fetches only the orders whose stored copy
     ),
   ).toEqual([changedId]);
 });
+
+it("BE-1 Webhook ingestion : 3. a sync does not count orders it did not write because the app was uninstalled meanwhile", async () => {
+  mockAdminGraphql(SHOP, async (variables) => {
+    if (typeof variables.id !== "string") {
+      return variables.after ? orderIdPages[1] : orderIdPages[0];
+    }
+    // app/uninstalled deletes the shop's sessions while the sync runs.
+    await db.session.deleteMany({ where: { shop: SHOP } });
+    return ordersById[variables.id];
+  });
+
+  const result = await sync(syncRequest());
+
+  expect(result).toEqual({ synced: 0 });
+  expect(await db.order.count()).toBe(0);
+});
