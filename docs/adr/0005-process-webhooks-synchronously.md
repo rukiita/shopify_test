@@ -1,6 +1,6 @@
 # 0005. Process webhooks synchronously within the request
 
-- Status: Proposed
+- Status: Accepted
 - Date: 2026-11-01
 - Issue: #17 (DEC-5)
 
