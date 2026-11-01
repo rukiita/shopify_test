@@ -1,11 +1,15 @@
 import type { ActionFunctionArgs } from "react-router";
 import { beforeEach, expect, it } from "vitest";
 import db from "../../app/db.server";
+import { mapOrder } from "../../app/lib/domain/order-mapper";
+import { saveOrder } from "../../app/lib/repositories/order-repository.server";
 import { action } from "../../app/routes/webhooks.app.uninstalled";
 import { resetDatabase } from "../helpers/database";
+import { fixtureOrder, fixtures } from "../helpers/order-fixtures";
 import { signedWebhookRequest } from "../helpers/webhook";
 
 const SHOP = "test-shop.myshopify.com";
+const OTHER_SHOP = "other-shop.myshopify.com";
 
 beforeEach(async () => {
   await resetDatabase();
@@ -51,4 +55,28 @@ it("BE-7 Whole app : 1. app/uninstalled with an invalid signature returns 401 an
   expect(response).toBeInstanceOf(Response);
   expect((response as Response).status).toBe(401);
   expect(await db.session.count({ where: { shop: SHOP } })).toBe(1);
+});
+
+it("BE-7 Whole app : 1. app/uninstalled deletes the shop's orders, line items and products", async () => {
+  await saveOrder(mapOrder(SHOP, fixtureOrder(fixtures.regular)));
+  // Another shop's order, with other products.
+  await saveOrder(mapOrder(OTHER_SHOP, fixtureOrder(fixtures.noCustomer)));
+
+  const response = await uninstalled(
+    signedWebhookRequest({
+      path: "/webhooks/app/uninstalled",
+      topic: "app/uninstalled",
+      shop: SHOP,
+      body: {},
+    }),
+  );
+
+  expect(response.status).toBe(200);
+  expect(await db.order.findMany({ select: { shop: true } })).toEqual([
+    { shop: OTHER_SHOP },
+  ]);
+  expect(await db.lineItem.count()).toBe(1);
+  expect(await db.product.findMany({ select: { shop: true } })).toEqual([
+    { shop: OTHER_SHOP },
+  ]);
 });
