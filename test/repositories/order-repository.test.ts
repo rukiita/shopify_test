@@ -42,3 +42,22 @@ it("BE-1 Webhook ingestion : 2. ignores a stale webhook that arrives late", asyn
   expect(await storedOrder()).toEqual(before);
   expect(before.lineItems).toHaveLength(2);
 });
+
+it("BE-1 Webhook ingestion : 2. updates the products even when the order is not overwritten", async () => {
+  await saveOrder(current());
+  // Same order version, but the product was renamed and retagged since.
+  const resynced = current();
+  resynced.products[0] = {
+    ...resynced.products[0],
+    title: "Hydrogen Snowboard",
+    tags: JSON.stringify(["Sale"]),
+  };
+
+  await saveOrder(resynced);
+
+  expect(
+    await db.product.findUniqueOrThrow({
+      where: { id: "gid://shopify/Product/9478544261275" },
+    }),
+  ).toMatchObject({ title: "Hydrogen Snowboard", tags: JSON.stringify(["Sale"]) });
+});
