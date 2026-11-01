@@ -38,3 +38,18 @@ it("BE-7 Whole app : 1. customers/data_request returns 200 and changes nothing",
   expect(response.status).toBe(200);
   expect(await storedOrders()).toEqual(before);
 });
+
+it("BE-7 Whole app : 1. customers/data_request returns 401 for an invalid signature", async () => {
+  const response = await dataRequest(
+    signedWebhookRequest({
+      path: "/webhooks/customers/data_request",
+      topic: "customers/data_request",
+      shop: SHOP,
+      body: dataRequestPayload,
+      secret: "not-the-app-secret",
+    }),
+  ).catch((thrown: unknown) => thrown);
+
+  expect(response).toBeInstanceOf(Response);
+  expect((response as Response).status).toBe(401);
+});
