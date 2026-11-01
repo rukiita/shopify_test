@@ -81,3 +81,14 @@ it("BE-1 Webhook ingestion : 3. a sync requests the next page with the end curso
     { after: orderIdPages[0].data.orders.pageInfo.endCursor },
   ]);
 });
+
+it("BE-1 Webhook ingestion : 3. a sync skips an order deleted before it is fetched and does not count it", async () => {
+  const deletedId = fixtureOrder(fixtures.noCustomer).id;
+  mockStore({ ...ordersById, [deletedId]: fixtures.deleted });
+
+  const result = await sync(syncRequest());
+
+  expect(result).toEqual({ synced: 2 });
+  expect(await db.order.findUnique({ where: { id: deletedId } })).toBeNull();
+  expect(await db.order.count()).toBe(2);
+});
