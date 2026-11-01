@@ -48,3 +48,23 @@ it("BE-7 Whole app : 1. shop/redact deletes the shop's orders, line items, produ
     { shop: OTHER_SHOP },
   ]);
 });
+
+it("BE-7 Whole app : 1. shop/redact returns 401 for an invalid signature and keeps the data", async () => {
+  await saveOrder(mapOrder(SHOP, fixtureOrder(fixtures.regular)));
+
+  const response = await shopRedact(
+    signedWebhookRequest({
+      path: "/webhooks/shop/redact",
+      topic: "shop/redact",
+      shop: SHOP,
+      body: shopRedactPayload,
+      secret: "not-the-app-secret",
+    }),
+  ).catch((thrown: unknown) => thrown);
+
+  expect(response).toBeInstanceOf(Response);
+  expect((response as Response).status).toBe(401);
+  expect(await db.order.count()).toBe(1);
+  expect(await db.product.count()).toBe(2);
+  expect(await db.session.count()).toBe(1);
+});
