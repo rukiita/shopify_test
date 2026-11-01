@@ -203,10 +203,13 @@ it("BE-1 Webhook ingestion : 3. a sync whose access token Shopify rejects throws
   mockAdminGraphql(
     SHOP,
     () =>
-      new Response(JSON.stringify({ errors: "Invalid API key or access token" }), {
-        status: 401,
-        headers: { "Content-Type": "application/json" },
-      }),
+      new Response(
+        JSON.stringify({ errors: "Invalid API key or access token" }),
+        {
+          status: 401,
+          headers: { "Content-Type": "application/json" },
+        },
+      ),
   );
 
   const thrown = await sync(syncRequest()).catch((error: unknown) => error);
