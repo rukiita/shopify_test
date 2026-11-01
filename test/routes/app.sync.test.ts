@@ -67,3 +67,17 @@ it("BE-1 Webhook ingestion : 3. a sync stores every order the orders query lists
       .map((id) => ({ id, shop: SHOP })),
   );
 });
+
+it("BE-1 Webhook ingestion : 3. a sync requests the next page with the end cursor until there is no next page", async () => {
+  const requests = mockStore();
+
+  await sync(syncRequest());
+
+  const pageRequests = requests.filter(
+    (request) => !("id" in (request.variables ?? {})),
+  );
+  expect(pageRequests.map((request) => request.variables ?? {})).toEqual([
+    {},
+    { after: orderIdPages[0].data.orders.pageInfo.endCursor },
+  ]);
+});
