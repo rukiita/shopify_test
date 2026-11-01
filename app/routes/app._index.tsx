@@ -117,6 +117,7 @@ export default function Index() {
           <SyncButton
             syncing={syncFetcher.state !== "idle"}
             synced={syncFetcher.data?.synced}
+            failed={syncFetcher.data?.failed}
             onSync={syncOrders}
           />
         </s-stack>
