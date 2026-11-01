@@ -12,7 +12,7 @@ Shopify's limits for HTTPS delivery ([Verify webhook deliveries](https://shopify
 
 - One second to connect and five seconds for the whole request. No response, or any status outside 2xx, is a failure
 - A failed delivery is retried 8 times over 4 hours, at growing intervals. After that it is dropped
-- After 8 consecutive failures, a subscription is deleted only if it was created with the Admin API. This app's subscriptions are in `shopify.app.toml` (app-specific), so failures lose deliveries but do not remove the subscription
+- Failing subscriptions are deleted only if they were created with the Admin API (shop-specific). Shopify does not delete failing app-specific subscriptions, the kind in `shopify.app.toml` that this app uses ([Manage webhook subscriptions](https://shopify.dev/docs/apps/build/webhooks/subscribe)). So failures lose deliveries but do not remove the subscription
 - Shopify recommends a queue to absorb bursts and to respond within five seconds
 
 ## Options considered
@@ -29,12 +29,12 @@ Times are measured inside the server; the time Shopify sees also includes the Cl
 
 **One delivery at a time.** 31 deliveries of `orders/create` and `orders/updated`, 5 to 12 seconds apart: orders with 3 line items, and one with 50.
 
-| Step | Median | 90th percentile | Max |
-|---|---|---|---|
-| `authenticate.webhook` (HMAC, session) | 4 ms | 25 ms | 594 ms (first request after a restart) |
-| GraphQL fetch (`ORDER_QUERY`) | 508 ms | 597 ms | 652 ms |
-| `saveOrder` | 16 ms | 20 ms | 41 ms |
-| Total | 538 ms | 619 ms | 1,085 ms |
+| Step | Min | Median | 90th percentile | Max |
+|---|---|---|---|---|
+| `authenticate.webhook` (HMAC, session) | 3 ms | 4 ms | 34 ms | 594 ms (first request after a restart) |
+| GraphQL fetch (`ORDER_QUERY`) | 387 ms | 508 ms | 597 ms | 652 ms |
+| `saveOrder` | 12 ms | 16 ms | 28 ms | 41 ms |
+| Total | 420 ms | 538 ms | 619 ms | 1,085 ms |
 
 - The order with 50 line items took 0.51 s and 0.59 s in total
 - Query cost: 28 requested; 6 actual for 3 line items and 11 for 50. About 2,000 points were available, restored at 100 per second
@@ -55,21 +55,23 @@ With one connection (`connection_limit=1` in the database URL), the same calls w
 
 ## Decision
 
-Option 1, with database writes serialized (#77).
+Option 1. To hold under bursts, it needs the database writes serialized, which #77 does.
 
-- One delivery takes about 0.5 s, a tenth of Shopify's limit. Most of it is the GraphQL fetch, which a queue would not shorten
-- The failure under concurrent deliveries comes from the database writes, not from where the work runs. A queue with one worker would serialize the writes, but so does one database connection, without a worker process or Redis
-- Accepting this ADR depends on #77. Until it is merged, concurrent order webhooks fail as measured above
+- One delivery takes about 0.5 s (90th percentile 0.62 s), a tenth of Shopify's limit. Most of it is the GraphQL fetch. A queue would take the fetch out of the response, but the margin is wide enough without it, and a queue adds a worker process and a job store (e.g. Redis) to the setup reviewers run
+- The failure under concurrent deliveries comes from concurrent SQLite writes, not from where the work runs. Serializing the writes in the app removes it for the bursts measured: with one connection, 20 small writes at once took 0.25 s, and 10 writes of 250 line items 1.3 s
+- Unlike a queue, serialized writes absorb a burst only up to a limit. Each waiting write must start within Prisma's transaction wait (2 s by default), and the delivery must still finish within 5 s. At the measured write times, that is on the order of 100 small orders at once, or about 15 of the largest. #77 measures the actual limit. At this task's scale (a development store with dozens of orders), bursts stay well below it
 
 ## Consequences
 
 - Positive: simple setup. Reviewers can run the app from the README alone, with no worker or Redis
-- Negative: the response waits for the Admin API. A slow fetch delays it directly (measured: 0.4–0.65 s)
-- Negative: until #77, concurrent order webhooks fail and depend on Shopify's retries
-- For production: process webhooks from a queue, use a database that allows concurrent writes (e.g. PostgreSQL), and reconcile missed orders (#21). Documented in the README under "Known limitations / Production considerations"
-- Revisit when: the webhook response time on the Dev Dashboard (app Overview, 90th percentile) exceeds 2 seconds, or its Logs show failed order deliveries
+- Negative: the response waits for the Admin API. A slow fetch delays it directly (measured: 387–652 ms)
+- Negative: until #77 is merged, concurrent order webhooks fail and depend on Shopify's retries. After it, a burst larger than serialized writes can absorb still does
+- Negative: if #77 serializes writes with one database connection, every other query waits behind order writes during a burst: session lookups in `authenticate.*`, admin pages, and the other webhook routes. #77 checks the effect
+- For production: process webhooks from a queue, use a database that allows concurrent writes (e.g. PostgreSQL), and run a periodic job that reconciles orders whose deliveries were dropped. No such job is planned: the sync in #21 imports only orders placed before the app was installed. Documented in the README under "Known limitations / Production considerations"
+- Revisit when: the webhook response time on the Dev Dashboard (app Overview, 90th percentile) exceeds 2 seconds, or its Logs show failed order deliveries after #77 is merged. Its current value was not read (the CLI cannot read it); the server-side 90th percentile was 0.62 s. The first version of this ADR set the trigger at one second before anything was measured. The first request after a restart already takes 1.1 s, so that trigger would fire on every restart
 
 ## References
 
 - https://shopify.dev/docs/apps/build/webhooks/verify-deliveries (timeouts, retries, queuing)
+- https://shopify.dev/docs/apps/build/webhooks/subscribe (failing app-specific subscriptions are not deleted)
 - https://shopify.dev/docs/apps/build/webhooks/troubleshoot (delivery metrics, response time, logs)
