@@ -45,12 +45,14 @@ const HEADER = [
 const BOM = "\uFEFF";
 
 export function buildOrdersCsv(orders: StoredExportOrder[]) {
-  const rows = [HEADER, ...orders.map(toRow)];
+  const rows = [HEADER, ...orders.flatMap(toRows)];
   return BOM + rows.map((row) => `${row.map(escapeCell).join(",")}\r\n`).join("");
 }
 
-function toRow(order: StoredExportOrder) {
-  return [
+// One row per line item, repeating the order's columns. An order without line items
+// still gets a row, so that it does not go missing from the file.
+function toRows(order: StoredExportOrder) {
+  const orderColumns = [
     // gid://shopify/Order/6663058751643 -> 6663058751643
     order.id.slice(order.id.lastIndexOf("/") + 1),
     String(order.number),
@@ -62,9 +64,15 @@ function toRow(order: StoredExportOrder) {
     joinList(order.tags),
     // Seconds are the precision Shopify has, so no milliseconds.
     order.shopifyCreatedAt.toISOString().replace(/\.\d{3}Z$/, "Z"),
-    "",
-    "",
   ];
+  if (order.lineItems.length === 0) {
+    return [[...orderColumns, "", ""]];
+  }
+  return order.lineItems.map(({ title, product }) => [
+    ...orderColumns,
+    product?.title ?? title,
+    product ? joinList(product.tags) : "",
+  ]);
 }
 
 // A JSON array of strings, as stored, in one cell.
