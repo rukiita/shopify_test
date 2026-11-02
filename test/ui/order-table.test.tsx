@@ -35,7 +35,10 @@ it("BE-2 Order list : 1. the table shows each order's columns, in the order give
   const { container } = render(
     <OrderTable
       {...props}
-      orders={[order, { ...order, id: "gid://shopify/Order/1005", name: "#1005" }]}
+      orders={[
+        order,
+        { ...order, id: "gid://shopify/Order/1005", name: "#1005" },
+      ]}
     />,
   );
 
@@ -148,7 +151,9 @@ it("BE-2 Order list : 1. an empty state explains how orders arrive and points to
   const { container } = render(<OrderTable {...props} orders={[]} />);
 
   expect(container.querySelector("s-table")).toBeNull();
-  expect(container.querySelector("s-heading")?.textContent).toBe("No orders yet");
+  expect(container.querySelector("s-heading")?.textContent).toBe(
+    "No orders yet",
+  );
   expect(container.textContent).toContain(
     "New orders appear here when they are placed or changed in your store.",
   );

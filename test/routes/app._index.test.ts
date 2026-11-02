@@ -72,11 +72,7 @@ it("BE-2 Order list : 1. the loader reads the page from the cursor in the URL", 
   const older = fixtureOrder(fixtures.noCustomer).id;
   const list = async (query: string) => {
     const result = await load(
-      adminRequest(
-        `/app?shop=${SHOP}&${query}`,
-        sessionToken(SHOP),
-        "GET",
-      ),
+      adminRequest(`/app?${query}`, sessionToken(SHOP), "GET"),
     );
     return result?.orders.map((order) => order.name);
   };
