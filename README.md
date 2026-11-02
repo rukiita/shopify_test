@@ -184,7 +184,7 @@ The app uses public distribution, so any store can install it. It is not listed 
 
 ### CSV rows: one row per line item
 
-Each row is one line item. Order columns (order id, number, total, customer, tags, …) repeat on every row of the same order.
+Each row is one line item. Order columns (order id, number, total, customer, tags, …) repeat on every row of the same order. A line item with quantity `0`, which was removed by an order edit or refunded, has no row, so the rows match the order as it is now.
 
 This keeps one product title and one set of product tags per row, so the file can be filtered and pivoted in a spreadsheet.
 
@@ -220,15 +220,15 @@ The address lines from Shopify (`formatted`, without the name) are joined with `
 | Columns | The nine fields of the CSV template, in order, followed by *Product title* and *Product tags* |
 | Order id | The numeric ID, e.g. `6663058751643` from `gid://shopify/Order/6663058751643`. It is the `id` in `order/id.json` and in the Shopify admin's order URL |
 | Order number | The number without the shop's prefix, e.g. `1006` for `#1006` |
-| Total price | A plain decimal in the order's currency, without a symbol: `11.99`, `1500` (JPY), `1.234` (KWD) |
+| Total price | A plain decimal in the shop's currency, without a symbol: `11.99`, `1500` (JPY), `1.234` (KWD) |
 | Multiple values in one cell (tags, payment gateways) | Joined with `, ` and quoted |
 | Dates | ISO 8601 in UTC, e.g. `2026-11-02T13:05:00Z`. The shop's time zone is not stored, and UTC does not depend on the server's |
 | Encoding | UTF-8 with a BOM, so Excel opens non-ASCII names and addresses correctly |
 | Line endings | CRLF (RFC 4180) |
-| Escaping | RFC 4180 (values containing `,`, `"` or line breaks are quoted; `"` is doubled) |
-| Formula cells | A text cell (payment gateway, customer fields, tags, product title, product tags) starting with `=`, `+`, `-`, `@`, tab or carriage return gets a leading `'`, because a spreadsheet can run such a cell as a formula. Numeric and generated columns (order id, order number, total price, created at) never do, so a negative total stays a number |
+| Escaping | RFC 4180 (values containing `,`, `"` or line breaks are quoted; `"` is doubled). Values containing `;` are quoted too: it is the separator in Excel in some locales, where the rest of the value would otherwise become a cell of its own |
+| Formula cells | A text cell (payment gateway, customer fields, tags, product title, product tags) starting with `=`, `+`, `-`, `@`, tab, carriage return, line feed or a full-width `＝`, `＋`, `－`, `＠` gets a leading `'`, because a spreadsheet can run such a cell as a formula ([OWASP](https://owasp.org/www-community/attacks/CSV_Injection)). Numeric and generated columns (order id, order number, total price, created at) never do, so a negative total stays a number |
 
-Merchants download the file with the **Export CSV** button above the order list, which is shown once the shop has orders. The file has all of the shop's orders, newest first, with a line item's rows in the order of their IDs, and is built from the app's database, so an export makes no Shopify API call. An order without line items still gets one row, with the product columns empty.
+Merchants download the file with the **Export CSV** button above the order list, which is shown once the shop has orders. The file has all of the shop's orders, newest first, with an order's rows in a stable order, and is built from the app's database, so an export makes no Shopify API call. An order with no line items left still gets one row, with the product columns empty.
 
 ### Distribution: public
 
@@ -275,7 +275,10 @@ _(to be expanded — Step 8)_
 _(to be completed — Step 8, #12)_
 
 - `read_customers` was added after the first install (#1). A store installed before that has it only once the merchant opens the app and approves the new scope. Until then the order query is denied, and order webhooks for that store fail and are retried
-- The CSV export reads all of a shop's orders and builds the file in memory within one request, which has not been measured on a large store. For large stores, stream the rows or build the file in a background job (#5)
+- The CSV export reads all of a shop's orders and builds the file in memory within one request, which has not been measured on a large store. The read shares the one SQLite connection, and building the file holds the Node process, so order webhooks for every shop wait meanwhile and can pass Shopify's 5-second limit, which leaves them to Shopify's retries. For large stores, stream the rows or build the file in a background job (#5)
+- The CSV has no currency column. *Total price* is in the currency the shop had when the order was last ingested, so the column can mix currencies after a shop changes its currency (#5)
+- *Order id* is a plain number of 13 or more digits. Excel is expected to display it in scientific notation, and saving the file from Excel can then write the rounded form (not checked in Excel yet). Keep the original file, or import the column as text (#5)
+- The `'` prefix stops a formula when the file is opened, but OWASP warns that Excel may strip quotes and escape characters after a file is saved and reopened (#5)
 - Only the first 250 line items of an order are stored (one GraphQL page, `lineItems(first: 250)`). Line items beyond that are not stored and not in the CSV (#1)
 - Order webhooks are processed within the request: the order is fetched and stored before the app responds ([ADR-0005](docs/adr/0005-process-webhooks-synchronously.md)). One delivery takes about 0.5 s against Shopify's 5-second limit. Database writes run one at a time over one SQLite connection, so deliveries that arrive at the same time wait for each other (#77). A burst of more than about 75 large or 170 small orders at once (measured on the database write alone; through the route it may be fewer) fails in part and is left to Shopify's retries. In production, process webhooks from a queue, use a database that allows concurrent writes, and reconcile orders whose deliveries were dropped. No reconciliation job is planned; the sync ([step 6](#6-import-existing-orders)) can be run by hand and imports the orders from the last 60 days that are missing or changed
 - `customers/redact` marks only orders the app has already stored. An order in `orders_to_redact` that is stored later (for example by the sync of existing orders) gets its customer fields as Shopify returns them then (#65)
