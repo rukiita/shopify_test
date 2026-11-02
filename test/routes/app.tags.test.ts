@@ -1,7 +1,9 @@
 import type { ActionFunctionArgs } from "react-router";
-import { afterEach, beforeEach, expect, it } from "vitest";
+import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import db from "../../app/db.server";
 import { action } from "../../app/routes/app.tags";
+import tagsAddInvalid from "../fixtures/tags-add-invalid.json";
+import tagsAddMissingOrder from "../fixtures/tags-add-missing-order.json";
 import tagsAdded from "../fixtures/tags-add.json";
 import { mockAdminGraphql, resetAdminGraphql } from "../helpers/admin-graphql";
 import { resetDatabase } from "../helpers/database";
@@ -155,4 +157,63 @@ it("BE-3 Add tag : 1. a request without a session token changes nothing", async 
   expect(response).toBeInstanceOf(Response);
   expect(requests).toHaveLength(0);
   expect(JSON.parse((await storedOrder()).tags)).toEqual(["wholesale"]);
+});
+
+it("BE-3 Add tag : 1. returns an error and leaves the database unchanged on userErrors", async () => {
+  await createOrder();
+  mockAdminGraphql(SHOP, tagsAddInvalid);
+
+  const result = await addTag("VIP");
+
+  expect(result).toEqual({ error: "Order tags is invalid" });
+  const stored = await storedOrder();
+  expect(JSON.parse(stored.tags)).toEqual(["wholesale"]);
+  expect(stored.shopifyUpdatedAt).toEqual(STORED_UPDATED_AT);
+});
+
+it("BE-3 Add tag : 1. returns an error when the order no longer exists in Shopify", async () => {
+  await createOrder();
+  mockAdminGraphql(SHOP, tagsAddMissingOrder);
+
+  const result = await addTag("VIP");
+
+  expect(result).toEqual({ error: "Order does not exist" });
+  expect(JSON.parse((await storedOrder()).tags)).toEqual(["wholesale"]);
+});
+
+it("BE-3 Add tag : 1. returns an error and leaves the database unchanged when the request fails", async () => {
+  await createOrder();
+  // The error Shopify returns, with HTTP 200, when a query exceeds the rate limit
+  // (https://shopify.dev/docs/api/usage/response-codes). Not captured: written from
+  // the documented code.
+  mockAdminGraphql(SHOP, {
+    errors: [{ message: "Throttled", extensions: { code: "THROTTLED" } }],
+  });
+  const logged = vi.spyOn(console, "error").mockImplementation(() => {});
+
+  const result = await addTag("VIP");
+
+  expect(result).toEqual({ error: "The tag could not be saved. Try again." });
+  expect(logged).toHaveBeenCalledOnce();
+  expect(JSON.parse((await storedOrder()).tags)).toEqual(["wholesale"]);
+  logged.mockRestore();
+});
+
+it("BE-3 Add tag : 1. rejects a request that is missing a field", async () => {
+  await createOrder();
+  const requests = mockAdminGraphql(SHOP, tagsAdded);
+
+  const result = await action({
+    request: adminRequest(
+      "/app/tags",
+      sessionToken(SHOP),
+      "POST",
+      new URLSearchParams({ intent: "add", orderId: ORDER_ID }),
+    ),
+    params: {},
+    context: {},
+  } as ActionFunctionArgs);
+
+  expect(result).toEqual({ error: "The tag could not be saved. Try again." });
+  expect(requests).toHaveLength(0);
 });
