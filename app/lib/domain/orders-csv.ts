@@ -78,5 +78,6 @@ function toRows(order: StoredExportOrder) {
 // A JSON array of strings, as stored, in one cell.
 const joinList = (stored: string) => (JSON.parse(stored) as string[]).join(", ");
 
+// RFC 4180.
 const escapeCell = (value: string) =>
-  value.includes(",") ? `"${value}"` : value;
+  /[",\r\n]/.test(value) ? `"${value.replaceAll('"', '""')}"` : value;
