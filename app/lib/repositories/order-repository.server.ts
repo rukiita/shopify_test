@@ -1,6 +1,7 @@
 import db from "../../db.server";
 import { ORDER_LIST_COLUMNS } from "../domain/order-list-row";
 import type { MappedOrder } from "../domain/order-mapper";
+import { ORDER_EXPORT_COLUMNS } from "../domain/orders-csv";
 import { shouldOverwrite } from "../domain/should-overwrite";
 
 // The customer fields of a redacted order (customers/redact).
@@ -165,6 +166,15 @@ async function readOrderPage(
     hasNextPage: backwards ? true : hasMore,
     hasPreviousPage: backwards ? hasMore : Boolean(cursor),
   };
+}
+
+// All of a shop's orders, newest first, with the columns the CSV export writes.
+export async function listOrdersForExport(shop: string) {
+  return db.order.findMany({
+    where: { shop },
+    orderBy: [{ shopifyCreatedAt: "desc" }, { id: "desc" }],
+    select: ORDER_EXPORT_COLUMNS,
+  });
 }
 
 // Removes the customer's email, name and address from the given orders of a shop
