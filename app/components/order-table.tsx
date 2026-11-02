@@ -1,3 +1,4 @@
+import { useEffect, useRef } from "react";
 import {
   formatOrderDate,
   type OrderListRow,
@@ -15,9 +16,41 @@ interface OrderTableProps {
 }
 
 // The order list (#2). Presentational: the page owns the data and the navigation.
-export function OrderTable({ orders, timeZone }: OrderTableProps) {
+export function OrderTable({
+  orders,
+  timeZone,
+  loading,
+  hasNextPage,
+  hasPreviousPage,
+  onNextPage,
+  onPreviousPage,
+}: OrderTableProps) {
+  const table = useRef<HTMLElement>(null);
+
+  // React 18 writes every prop of a custom element as an attribute, so false would
+  // become the attribute "false", and it does not listen to `onNextPage` at all. So
+  // these are set on the element directly.
+  useEffect(() => {
+    Object.assign(table.current!, {
+      paginate: hasNextPage || hasPreviousPage,
+      loading,
+      hasNextPage,
+      hasPreviousPage,
+    });
+  }, [loading, hasNextPage, hasPreviousPage]);
+
+  useEffect(() => {
+    const element = table.current!;
+    element.addEventListener("nextpage", onNextPage);
+    element.addEventListener("previouspage", onPreviousPage);
+    return () => {
+      element.removeEventListener("nextpage", onNextPage);
+      element.removeEventListener("previouspage", onPreviousPage);
+    };
+  }, [onNextPage, onPreviousPage]);
+
   return (
-    <s-table variant="auto">
+    <s-table ref={table} variant="auto">
       <s-table-header-row>
         <s-table-header listSlot="primary">Order</s-table-header>
         <s-table-header listSlot="labeled">Created at</s-table-header>
