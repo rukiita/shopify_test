@@ -377,7 +377,7 @@ it("BE-5 CSV export : 1. the order list saves the file from the export route", a
 });
 
 it("BE-5 CSV export : 1. the order list disables the export button until the export finishes", async () => {
-  let finish = (_response: Response) => {};
+  let finish: (response: Response) => void = () => {};
   vi.stubGlobal(
     "fetch",
     vi.fn(
