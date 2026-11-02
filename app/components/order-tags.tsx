@@ -1,4 +1,4 @@
-import { useRef, useState, type FormEvent } from "react";
+import { useEffect, useRef, useState, type FormEvent } from "react";
 import type { TagResult } from "../lib/tag-order.server";
 
 interface OrderTagsProps {
@@ -34,6 +34,13 @@ export function OrderTags({
       setFieldKey(fieldKey + 1);
     }
   }
+
+  // The new element takes the focus, so that the next tag can be typed straight away.
+  useEffect(() => {
+    if (fieldKey > 0) {
+      field.current?.focus();
+    }
+  }, [fieldKey]);
 
   const error = !saving && result && "error" in result ? result.error : null;
 
@@ -84,6 +91,7 @@ export function OrderTags({
             labelAccessibilityVisibility="exclusive"
             name="tag"
             {...(error ? { error } : {})}
+            {...(saving ? { readOnly: true } : {})}
           />
           {/* React 18 writes `disabled={false}` as the attribute disabled="false",
               which still disables the button, so the attributes are only added

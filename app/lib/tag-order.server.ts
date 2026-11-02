@@ -1,9 +1,7 @@
 import type { AdminApiContext } from "@shopify/shopify-app-react-router/server";
 import { normalizeTag } from "./domain/normalize-tag";
-import {
-  findOrderTags,
-  updateOrderTags,
-} from "./repositories/order-repository.server";
+import { ingestOrder } from "./ingest-order.server";
+import { findOrderTags } from "./repositories/order-repository.server";
 import {
   ADD_ORDER_TAG_MUTATION,
   REMOVE_ORDER_TAG_MUTATION,
@@ -14,10 +12,6 @@ export type TagResult = { ok: true } | { error: string };
 export const TAG_NOT_SAVED = {
   error: "The tag could not be saved. Try again.",
 };
-const TAG_NOT_REMOVED = {
-  error: "The tag could not be removed. Try again.",
-};
-const ORDER_NOT_FOUND = { error: "This order could not be found" };
 
 // Adds a tag to an order: Shopify first, then the stored copy (ADR-0004).
 export async function addOrderTag(
@@ -26,22 +20,44 @@ export async function addOrderTag(
   orderId: string,
   input: string,
 ): Promise<TagResult> {
-  const tags = await findOrderTags(shop, orderId);
-  if (!tags) {
-    return ORDER_NOT_FOUND;
-  }
-  const normalized = normalizeTag(input, tags);
-  if ("error" in normalized) {
-    return normalized;
-  }
+  try {
+    const tags = await findOrderTags(shop, orderId);
+    if (!tags) {
+      return { error: "This order could not be found" };
+    }
+    let normalized = normalizeTag(input, tags);
+    // Rejected only because of the stored tags, which are behind Shopify while a webhook
+    // is late. Otherwise a tag just removed in the Shopify admin could not be added back.
+    if ("error" in normalized && !("error" in normalizeTag(input, []))) {
+      await ingestOrder(admin, shop, orderId);
+      normalized = normalizeTag(
+        input,
+        (await findOrderTags(shop, orderId)) ?? [],
+      );
+    }
+    if ("error" in normalized) {
+      return normalized;
+    }
 
-  return writeTags(shop, orderId, TAG_NOT_SAVED, async () => {
     const response = await admin.graphql(ADD_ORDER_TAG_MUTATION, {
       variables: { id: orderId, tags: [normalized.tag] },
     });
     const { data } = await response.json();
-    return data?.tagsAdd;
-  });
+    const userError = data?.tagsAdd?.userErrors[0];
+    if (userError) {
+      return { error: userError.message };
+    }
+    if (!data?.tagsAdd?.node) {
+      throw new Error("tagsAdd returned no order");
+    }
+
+    await storeOrderAfterWrite(admin, shop, orderId);
+    return { ok: true };
+  } catch (error) {
+    rethrowExpiredToken(error);
+    console.error(`Adding a tag to ${orderId} of ${shop} failed`, error);
+    return TAG_NOT_SAVED;
+  }
 }
 
 // Removes a tag from an order: Shopify first, then the stored copy (ADR-0004). The tag
@@ -55,55 +71,60 @@ export async function removeOrderTag(
 ): Promise<TagResult> {
   const tags = await findOrderTags(shop, orderId);
   if (!tags) {
-    return ORDER_NOT_FOUND;
+    return { error: "This order could not be found" };
   }
   if (!tags.includes(tag)) {
     return { error: "This order does not have that tag" };
   }
 
-  return writeTags(shop, orderId, TAG_NOT_REMOVED, async () => {
+  try {
     const response = await admin.graphql(REMOVE_ORDER_TAG_MUTATION, {
       variables: { id: orderId, tags: [tag] },
     });
     const { data } = await response.json();
-    return data?.tagsRemove;
-  });
-}
-
-interface TagMutationPayload {
-  node?: { tags?: string[]; updatedAt?: string } | null;
-  userErrors: { message: string }[];
-}
-
-// Sends a tag mutation, and on success stores the tags and updatedAt it returned.
-async function writeTags(
-  shop: string,
-  orderId: string,
-  failed: { error: string },
-  mutate: () => Promise<TagMutationPayload | null | undefined>,
-): Promise<TagResult> {
-  try {
-    const payload = await mutate();
-    const userError = payload?.userErrors[0];
+    const userError = data?.tagsRemove?.userErrors[0];
     if (userError) {
       return { error: userError.message };
     }
-    const { tags, updatedAt } = payload?.node ?? {};
-    if (!tags || !updatedAt) {
-      throw new Error("The tag mutation returned no order");
+    if (!data?.tagsRemove?.node) {
+      throw new Error("tagsRemove returned no order");
     }
 
-    await updateOrderTags(shop, orderId, tags, new Date(updatedAt));
+    await storeOrderAfterWrite(admin, shop, orderId);
     return { ok: true };
   } catch (error) {
-    // Asks App Bridge to get a new session token and retry.
-    if (error instanceof Response && error.status === 401) {
-      throw error;
-    }
-    // Trying again is safe when the database write is what failed: tagsAdd and tagsRemove
-    // do nothing for a tag already added or removed. The next orders/updated also
-    // repairs it (ADR-0004).
-    console.error(`A tag write to ${orderId} of ${shop} failed`, error);
-    return failed;
+    rethrowExpiredToken(error);
+    console.error(`Removing a tag from ${orderId} of ${shop} failed`, error);
+    return { error: "The tag could not be removed. Try again." };
+  }
+}
+
+// Refetches and stores the whole order, as a webhook would (ADR-0003). Writing only the
+// tags would move the stored updatedAt past columns that are still old, and then neither
+// a late webhook nor a sync would repair them. A write can also change nothing in
+// Shopify, and then no orders/updated follows.
+//
+// A failure here is logged, not returned: the write has reached Shopify, and the
+// orders/updated for it repairs the stored copy.
+async function storeOrderAfterWrite(
+  admin: AdminApiContext,
+  shop: string,
+  orderId: string,
+) {
+  try {
+    await ingestOrder(admin, shop, orderId);
+  } catch (error) {
+    rethrowExpiredToken(error);
+    console.error(
+      `Storing ${orderId} of ${shop} after a tag edit failed`,
+      error,
+    );
+  }
+}
+
+// A 401 Response asks App Bridge to get a new session token and retry.
+function rethrowExpiredToken(error: unknown) {
+  if (error instanceof Response && error.status === 401) {
+    throw error;
   }
 }

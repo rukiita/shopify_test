@@ -101,22 +101,6 @@ export async function findOrderTags(
   return order && JSON.parse(order.tags);
 }
 
-// Writes the tags and updatedAt that a tag mutation returned. With the newer updatedAt
-// stored, a fetch from before the mutation cannot overwrite the tags when it finishes
-// late. Nothing is written when the stored copy is newer, or the order is gone (the
-// app was uninstalled meanwhile).
-export async function updateOrderTags(
-  shop: string,
-  orderId: string,
-  tags: string[],
-  shopifyUpdatedAt: Date,
-) {
-  await db.order.updateMany({
-    where: { id: orderId, shop, shopifyUpdatedAt: { lte: shopifyUpdatedAt } },
-    data: { tags: JSON.stringify(tags), shopifyUpdatedAt },
-  });
-}
-
 const ORDER_LIST_PAGE_SIZE = 50;
 
 interface ListOrdersOptions {

@@ -71,7 +71,7 @@ it("BE-3 Add tag : 1. the reason is shown when a tag is rejected", () => {
   expect(field(container).hasAttribute("error")).toBe(false);
 });
 
-it("BE-3 Add tag : 1. the field is cleared after a tag is added", () => {
+it("BE-3 Add tag : 1. the field is cleared after a tag is added, and keeps the focus", () => {
   const { container, rerender } = render(<OrderTags {...props} />);
   submit(container, "wholesale");
   const typedIn = field(container);
@@ -81,8 +81,19 @@ it("BE-3 Add tag : 1. the field is cleared after a tag is added", () => {
   // A rejected tag stays, so that it can be corrected.
   expect(field(container)).toBe(typedIn);
 
+  const focused = vi.spyOn(HTMLElement.prototype, "focus");
   rerender(<OrderTags {...props} result={{ ok: true }} />);
   expect(field(container)).not.toBe(typedIn);
+  expect(focused.mock.contexts).toEqual([field(container)]);
+  focused.mockRestore();
+});
+
+it("BE-3 Add tag : 1. the field cannot be edited while saving", () => {
+  const { container, rerender } = render(<OrderTags {...props} saving />);
+  expect(field(container).hasAttribute("readOnly")).toBe(true);
+
+  rerender(<OrderTags {...props} />);
+  expect(field(container).hasAttribute("readOnly")).toBe(false);
 });
 
 it("BE-4 Remove tag : 1. each tag has a remove button", () => {
