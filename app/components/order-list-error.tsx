@@ -18,9 +18,9 @@ export function OrderListError({ onRetry }: OrderListErrorProps) {
   );
 }
 
-// Keeps a failed page load inside the app's frame: the ErrorBoundary of app.tsx
-// rethrows anything but a response. Responses still go to boundary.error, because
-// Shopify's auth throws them and needs their content rendered as it is.
+// A failed page load shows a banner instead of React Router's error page. Responses
+// still go to boundary.error, because Shopify's auth throws them and needs their
+// content rendered as it is.
 export function OrderListErrorBoundary() {
   const error = useRouteError();
 

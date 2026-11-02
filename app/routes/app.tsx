@@ -1,6 +1,7 @@
 import type { HeadersFunction, LoaderFunctionArgs } from "react-router";
-import { Outlet, useLoaderData, useRouteError } from "react-router";
+import { Outlet, useLoaderData } from "react-router";
 import { boundary } from "@shopify/shopify-app-react-router/server";
+import { OrderListErrorBoundary } from "../components/order-list-error";
 import { AppProvider } from "@shopify/shopify-app-react-router/react";
 // Declares App Bridge's elements for TypeScript, such as s-app-nav below.
 import type {} from "@shopify/app-bridge-react";
@@ -28,9 +29,10 @@ export default function App() {
 }
 
 // Shopify needs React Router to catch some thrown responses, so that their headers are included in the response.
-export function ErrorBoundary() {
-  return boundary.error(useRouteError());
-}
+// OrderListErrorBoundary passes those to boundary.error. Anything else would be
+// rethrown there, so a failure of this route's loader, or of a Sync request, which has
+// no boundary of its own, shows the banner too.
+export const ErrorBoundary = OrderListErrorBoundary;
 
 export const headers: HeadersFunction = (headersArgs) => {
   return boundary.headers(headersArgs);
