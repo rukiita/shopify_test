@@ -2,9 +2,11 @@ import type { ActionFunctionArgs } from "react-router";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import db from "../../app/db.server";
 import { action } from "../../app/routes/app.tags";
+import invalidToken from "../fixtures/admin-invalid-token.json";
 import tagsAddInvalid from "../fixtures/tags-add-invalid.json";
 import tagsAddMissingOrder from "../fixtures/tags-add-missing-order.json";
 import tagsAdded from "../fixtures/tags-add.json";
+import { fixtureOrder, fixtures } from "../helpers/order-fixtures";
 import { mockAdminGraphql, resetAdminGraphql } from "../helpers/admin-graphql";
 import { resetDatabase } from "../helpers/database";
 import { createOfflineSession } from "../helpers/session";
@@ -54,43 +56,78 @@ const addTag = (tag: string) =>
     context: {},
   } as ActionFunctionArgs);
 
+// The response to the refetch after a write: a captured order, with this test's ID,
+// tags and updatedAt.
+const orderResponse = (tags: string[], updatedAt: string) => ({
+  data: {
+    order: { ...fixtureOrder(fixtures.regular), id: ORDER_ID, tags, updatedAt },
+  },
+});
+
+const ADDED = tagsAdded.data.tagsAdd.node;
+const orderAfterAdd = orderResponse(ADDED.tags, ADDED.updatedAt);
+
+// Only a tag mutation has `tags` in its variables.
+const isTagMutation = (variables: Record<string, unknown>) =>
+  "tags" in variables;
+
+const mockStore = (mutation: object, order: object = orderAfterAdd) =>
+  mockAdminGraphql(SHOP, (variables) =>
+    isTagMutation(variables) ? mutation : order,
+  );
+
+const rejectedToken = () =>
+  new Response(JSON.stringify(invalidToken), {
+    status: 401,
+    headers: { "Content-Type": "application/json" },
+  });
+
+// The error Shopify returns, with HTTP 200, when a query exceeds the rate limit
+// (https://shopify.dev/docs/api/usage/response-codes). Not captured: the development
+// store cannot be made to throttle on demand. Written from the documented code.
+const THROTTLED = {
+  errors: [{ message: "Throttled", extensions: { code: "THROTTLED" } }],
+};
+
 it("BE-3 Add tag : 1. calls tagsAdd and updates the stored tags", async () => {
   await createOrder();
-  const requests = mockAdminGraphql(SHOP, tagsAdded);
+  const requests = mockStore(tagsAdded);
 
   const result = await addTag("VIP");
 
   expect(result).toEqual({ ok: true });
-  expect(requests).toHaveLength(1);
+  expect(requests).toHaveLength(2);
   expect(requests[0].query).toContain("tagsAdd(");
   expect(requests[0].variables).toEqual({ id: ORDER_ID, tags: ["VIP"] });
+  expect(requests[1].variables).toEqual({ id: ORDER_ID });
   expect(JSON.parse((await storedOrder()).tags)).toEqual(["VIP", "wholesale"]);
 });
 
-it("BE-3 Add tag : 1. stores the tags and updatedAt that Shopify returns", async () => {
-  // The stored copy is behind Shopify: "wholesale" was added in the admin.
+it("BE-3 Add tag : 1. stores the whole order as Shopify has it after the write", async () => {
+  // The stored copy is behind Shopify: a webhook for an earlier change never succeeded.
+  // tagsAdd may have nothing to do, and then no orders/updated follows to repair it.
   await createOrder({ tags: [] });
-  mockAdminGraphql(SHOP, tagsAdded);
+  mockStore(tagsAdded);
 
   await addTag("VIP");
 
   const stored = await storedOrder();
-  expect(JSON.parse(stored.tags)).toEqual(["VIP", "wholesale"]);
-  expect(stored.shopifyUpdatedAt).toEqual(
-    new Date(tagsAdded.data.tagsAdd.node.updatedAt),
-  );
+  expect(JSON.parse(stored.tags)).toEqual(ADDED.tags);
+  expect(stored.shopifyUpdatedAt).toEqual(new Date(ADDED.updatedAt));
+  expect(stored.name).toBe(fixtureOrder(fixtures.regular).name);
 });
 
 it("BE-3 Add tag : 1. does not overwrite stored tags that are newer than the response", async () => {
   await createOrder();
-  // An orders/updated for a later change is stored while tagsAdd is on its way back.
+  // An orders/updated for a later change is stored while the refetch is on its way back.
   const newer = new Date("2026-11-02T08:00:00Z");
-  mockAdminGraphql(SHOP, async () => {
+  mockAdminGraphql(SHOP, async (variables) => {
+    if (isTagMutation(variables)) return tagsAdded;
     await db.order.update({
       where: { id: ORDER_ID },
       data: { tags: '["newer"]', shopifyUpdatedAt: newer },
     });
-    return tagsAdded;
+    return orderAfterAdd;
   });
 
   await addTag("VIP");
@@ -102,13 +139,18 @@ it("BE-3 Add tag : 1. does not overwrite stored tags that are newer than the res
 
 it("BE-3 Add tag : 1. a request whose access token Shopify rejects throws the 401 that makes App Bridge retry", async () => {
   await createOrder();
-  mockAdminGraphql(
-    SHOP,
-    () =>
-      new Response(
-        JSON.stringify({ errors: "Invalid API key or access token" }),
-        { status: 401, headers: { "Content-Type": "application/json" } },
-      ),
+  mockAdminGraphql(SHOP, rejectedToken);
+
+  const thrown = await addTag("VIP").catch((error: unknown) => error);
+
+  expect(thrown).toBeInstanceOf(Response);
+  expect((thrown as Response).status).toBe(401);
+});
+
+it("BE-3 Add tag : 1. a refetch whose access token Shopify rejects throws the 401 too", async () => {
+  await createOrder();
+  mockAdminGraphql(SHOP, (variables) =>
+    isTagMutation(variables) ? tagsAdded : rejectedToken(),
   );
 
   const thrown = await addTag("VIP").catch((error: unknown) => error);
@@ -128,14 +170,65 @@ it("BE-3 Add tag : 1. rejects an order of another shop without calling Shopify",
   expect(JSON.parse((await storedOrder()).tags)).toEqual(["wholesale"]);
 });
 
-it("BE-3 Add tag : 1. rejects a tag the order already has without calling Shopify", async () => {
+it("BE-3 Add tag : 1. rejects a tag the order already has without calling tagsAdd", async () => {
   await createOrder({ tags: ["VIP"] });
-  const requests = mockAdminGraphql(SHOP, tagsAdded);
+  const requests = mockStore(
+    tagsAdded,
+    orderResponse(["VIP"], ADDED.updatedAt),
+  );
 
   const result = await addTag("vip");
 
   expect(result).toEqual({ error: "This order already has that tag" });
+  expect(requests.filter((r) => isTagMutation(r.variables ?? {}))).toEqual([]);
+});
+
+it("BE-3 Add tag : 1. adds a tag that only the stored copy still has", async () => {
+  // Removed in the Shopify admin, and the webhook has not arrived.
+  await createOrder({ tags: ["VIP"] });
+  const orders = [orderResponse([], "2026-11-02T07:00:00Z"), orderAfterAdd];
+  const requests = mockAdminGraphql(SHOP, (variables) =>
+    isTagMutation(variables) ? tagsAdded : orders.shift(),
+  );
+
+  const result = await addTag("VIP");
+
+  expect(result).toEqual({ ok: true });
+  expect(requests.filter((r) => isTagMutation(r.variables ?? {}))).toHaveLength(
+    1,
+  );
+  expect(JSON.parse((await storedOrder()).tags)).toEqual(ADDED.tags);
+});
+
+it("BE-3 Add tag : 1. returns an error when the stored order cannot be read", async () => {
+  await createOrder();
+  await db.order.update({
+    where: { id: ORDER_ID },
+    data: { tags: "not JSON" },
+  });
+  const requests = mockStore(tagsAdded);
+  const logged = vi.spyOn(console, "error").mockImplementation(() => {});
+
+  const result = await addTag("VIP");
+
+  expect(result).toEqual({ error: "The tag could not be saved. Try again." });
+  expect(logged).toHaveBeenCalledOnce();
   expect(requests).toHaveLength(0);
+  logged.mockRestore();
+});
+
+it("BE-3 Add tag : 1. reports success when only the refetch after tagsAdd fails", async () => {
+  await createOrder();
+  // The tag is on the order in Shopify, and the orders/updated for it repairs the copy.
+  mockStore(tagsAdded, THROTTLED);
+  const logged = vi.spyOn(console, "error").mockImplementation(() => {});
+
+  const result = await addTag("VIP");
+
+  expect(result).toEqual({ ok: true });
+  expect(logged).toHaveBeenCalledOnce();
+  expect(JSON.parse((await storedOrder()).tags)).toEqual(["wholesale"]);
+  logged.mockRestore();
 });
 
 it("BE-3 Add tag : 1. a request without a session token changes nothing", async () => {
@@ -184,12 +277,7 @@ it("BE-3 Add tag : 1. returns an error when the order no longer exists in Shopif
 
 it("BE-3 Add tag : 1. returns an error and leaves the database unchanged when the request fails", async () => {
   await createOrder();
-  // The error Shopify returns, with HTTP 200, when a query exceeds the rate limit
-  // (https://shopify.dev/docs/api/usage/response-codes). Not captured: written from
-  // the documented code.
-  mockAdminGraphql(SHOP, {
-    errors: [{ message: "Throttled", extensions: { code: "THROTTLED" } }],
-  });
+  mockAdminGraphql(SHOP, THROTTLED);
   const logged = vi.spyOn(console, "error").mockImplementation(() => {});
 
   const result = await addTag("VIP");
