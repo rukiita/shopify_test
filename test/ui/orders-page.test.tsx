@@ -351,9 +351,17 @@ function spyOnSaving() {
   return { blobs, saved };
 }
 
+const csvResponse = () =>
+  new Response("the csv", {
+    headers: { "Content-Type": "text/csv; charset=utf-8" },
+  });
+
+const exportError = (container: HTMLElement) =>
+  container.querySelector('s-text[tone="critical"]')?.textContent;
+
 it("BE-5 CSV export : 1. the order list saves the file from the export route", async () => {
-  const fetched = vi.fn<(url: string) => Promise<Response>>(
-    async () => new Response("the csv"),
+  const fetched = vi.fn<(url: string) => Promise<Response>>(async () =>
+    csvResponse(),
   );
   vi.stubGlobal("fetch", fetched);
   const { container } = renderOrders({ ordersLoader: () => page([row(1)]) });
@@ -368,10 +376,16 @@ it("BE-5 CSV export : 1. the order list saves the file from the export route", a
   expect(await blobs[0].text()).toBe("the csv");
 });
 
-it("BE-5 CSV export : 1. the order list shows an error and saves nothing when the export fails", async () => {
+it("BE-5 CSV export : 1. the order list disables the export button until the export finishes", async () => {
+  let finish = (_response: Response) => {};
   vi.stubGlobal(
     "fetch",
-    vi.fn(async () => new Response("", { status: 500 })),
+    vi.fn(
+      () =>
+        new Promise<Response>((resolve) => {
+          finish = resolve;
+        }),
+    ),
   );
   const { container } = renderOrders({ ordersLoader: () => page([row(1)]) });
   const button = await exportButton(container);
@@ -379,13 +393,44 @@ it("BE-5 CSV export : 1. the order list shows an error and saves nothing when th
 
   fireEvent.click(button);
 
-  await waitFor(() => {
-    expect(
-      container.querySelector('s-text[tone="critical"]')?.textContent,
-    ).toBe("The orders could not be exported. Try again.");
-  });
-  expect(saved).toEqual([]);
+  await waitFor(() => expect(button.hasAttribute("disabled")).toBe(true));
+  finish(csvResponse());
+  await waitFor(() => expect(button.hasAttribute("disabled")).toBe(false));
+  expect(saved).toHaveLength(1);
 });
+
+it.each([
+  ["fails", () => new Response("", { status: 500 })],
+  [
+    "returns something other than a CSV",
+    () =>
+      new Response("<script></script>", {
+        headers: { "Content-Type": "text/html;charset=utf-8" },
+      }),
+  ],
+])(
+  "BE-5 CSV export : 1. the order list logs an error, shows it and saves nothing when the export %s",
+  async (_case, response) => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => response()),
+    );
+    const logged = vi.spyOn(console, "error").mockImplementation(() => {});
+    const { container } = renderOrders({ ordersLoader: () => page([row(1)]) });
+    const button = await exportButton(container);
+    const { saved } = spyOnSaving();
+
+    fireEvent.click(button);
+
+    await waitFor(() => {
+      expect(exportError(container)).toBe(
+        "The orders could not be exported. Try again.",
+      );
+    });
+    expect(saved).toEqual([]);
+    expect(logged).toHaveBeenCalledWith(expect.any(Error));
+  },
+);
 
 it("BE-5 CSV export : 1. the order list shows an error when the export request does not complete", async () => {
   vi.stubGlobal(
@@ -394,13 +439,14 @@ it("BE-5 CSV export : 1. the order list shows an error when the export request d
       throw new TypeError("Failed to fetch");
     }),
   );
+  vi.spyOn(console, "error").mockImplementation(() => {});
   const { container } = renderOrders({ ordersLoader: () => page([row(1)]) });
 
   fireEvent.click(await exportButton(container));
 
   await waitFor(() => {
-    expect(
-      container.querySelector('s-text[tone="critical"]')?.textContent,
-    ).toBe("The orders could not be exported. Try again.");
+    expect(exportError(container)).toBe(
+      "The orders could not be exported. Try again.",
+    );
   });
 });
