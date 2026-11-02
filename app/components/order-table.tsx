@@ -54,17 +54,8 @@ function PagedTable({
 }: OrderTableProps) {
   const table = useRef<HTMLElementTagNameMap["s-table"]>(null);
 
-  // React 18 writes every prop of a custom element as an attribute, so false would
-  // become the attribute "false", and it does not listen to `onNextPage` at all. So
-  // these are set on the element directly.
-  useEffect(() => {
-    const element = table.current!;
-    element.paginate = hasNextPage || hasPreviousPage;
-    element.loading = loading;
-    element.hasNextPage = hasNextPage;
-    element.hasPreviousPage = hasPreviousPage;
-  }, [loading, hasNextPage, hasPreviousPage]);
-
+  // Listened to here because React 18 does not bind `onNextPage` on a custom element.
+  // Polaris does once its script runs, but it never runs in the tests.
   useEffect(() => {
     const element = table.current!;
     element.addEventListener("nextpage", onNextPage);
@@ -76,7 +67,17 @@ function PagedTable({
   }, [onNextPage, onPreviousPage]);
 
   return (
-    <s-table ref={table} variant="auto">
+    // The attributes are only added when true: React 18 writes false as the attribute
+    // "false", which still reads as true. In JSX, not set on the element from an effect:
+    // Polaris drops the first write to a hydrated element, and a server render has them.
+    <s-table
+      ref={table}
+      variant="auto"
+      {...(hasNextPage || hasPreviousPage ? { paginate: true } : {})}
+      {...(loading ? { loading: true } : {})}
+      {...(hasNextPage ? { hasNextPage: true } : {})}
+      {...(hasPreviousPage ? { hasPreviousPage: true } : {})}
+    >
       <s-table-header-row>
         <s-table-header listSlot="primary">Order</s-table-header>
         <s-table-header listSlot="labeled">Created at</s-table-header>
