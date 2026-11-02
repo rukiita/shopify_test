@@ -64,3 +64,24 @@ it("BE-5 CSV export : 1. the loader rejects a request without a valid session to
 
   expect((thrown as Response).status).toBe(401);
 });
+
+it("BE-5 CSV export : 1. the loader's file has no formula at the start of a part split on semicolons and line breaks", async () => {
+  const fixture = fixtureOrder(fixtures.regular);
+  for (const firstName of ["x;=1+1;y", "before\n=1+1", 'x;"=1+1']) {
+    await saveOrder(
+      mapOrder(SHOP, {
+        ...fixture,
+        customer: { firstName, lastName: "Buyer" },
+      }),
+    );
+
+    const response = await load(
+      adminRequest("/app/export", sessionToken(SHOP), "GET"),
+    );
+
+    // How a spreadsheet with ; as its separator cuts the file: commas do not split a
+    // line there, so a value's opening quote is in the middle of a cell.
+    const parts = (await response.text()).split(/[;\r\n]+/);
+    expect(parts.filter((part) => /^"*[=+\-@]/.test(part))).toEqual([]);
+  }
+});

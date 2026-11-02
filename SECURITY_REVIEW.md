@@ -63,7 +63,7 @@ The command skips test files, documentation, missing hardening, data retention a
 | Only the customer fields the app needs are stored. A shop's data is deleted on `app/uninstalled` and `shop/redact`, and `customers/redact` removes the customer fields from the listed orders | Protected customer data terms; less to leak |
 | `test/fixtures/` and `samples/` contain only test names, emails and addresses | Fixtures are captured from real responses (CONTRIBUTING.md, "spike"), and test files are outside `/security-review` |
 | Scopes stay at `read_customers` (the order's customer name, #1), `read_orders`, `read_products`, `write_orders` (ADR-0004). Any addition is justified in the PR | Least privilege; merchants grant these at install |
-| CSV text cells starting with `=`, `+`, `-`, `@`, tab, carriage return, line feed or a full-width `＝`, `＋`, `－`, `＠` cannot run as formulas in a spreadsheet, and values containing `,` or `;` cannot start a new cell | Tags and customer fields are user-controlled and end up in Excel |
+| CSV text cells starting with `=`, `+`, `-`, `@`, tab, carriage return, line feed or a full-width `＝`, `＋`, `－`, `＠` cannot run as formulas in a spreadsheet, and the same characters after `;` or a line break inside a cell cannot start a new cell or line where `;` is the separator | Tags and customer fields are user-controlled and end up in Excel |
 | `npm audit --audit-level=high` reports no high or critical issues, or each one is explained in the PR | Dependency vulnerabilities are outside `/security-review` |
 
 ## 5. Reporting

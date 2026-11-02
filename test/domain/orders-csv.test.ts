@@ -171,10 +171,46 @@ it.each(["\r", "\n"])(
   },
 );
 
-it("BE-5 CSV export : 1. quotes a value containing a semicolon, so that it stays one cell where the separator is a semicolon", () => {
-  expect(firstRow(order({ customerFullName: "Test;=1+1" }))).toContain(
-    ',"Test;=1+1",',
+it("BE-5 CSV export : 1. quotes a value containing a semicolon", () => {
+  expect(firstRow(order({ customerFullName: "Test;1+1" }))).toContain(
+    ',"Test;1+1",',
   );
+});
+
+it.each(["=", "+", "-", "@", "\t", "\uFF1D", "\uFF0B", "\uFF0D", "\uFF20"])(
+  "BE-5 CSV export : 1. prefixes a formula character after a semicolon within a text cell (%j)",
+  (start) => {
+    expect(
+      cell(order({ customerAddress: `x;${start}1` }), "Customer address"),
+    ).toBe(`"x;'${start}1"`);
+  },
+);
+
+it.each(["\n", "\r", "\r\n", ";\n", "\n\n"])(
+  "BE-5 CSV export : 1. prefixes a formula character after a line break within a text cell (%j)",
+  (lineBreak) => {
+    expect(
+      buildOrdersCsv([order({ tags: JSON.stringify([`x${lineBreak}=1`]) })]),
+    ).toContain(`,"x${lineBreak}'=1",`);
+  },
+);
+
+it("BE-5 CSV export : 1. prefixes a text cell starting with a line break, and the formula character after it", () => {
+  expect(firstRow(order({ tags: JSON.stringify(["\n=1"]) }))).toContain(
+    `,"'\n'=1",`,
+  );
+});
+
+it("BE-5 CSV export : 1. prefixes a formula character after a semicolon and a quote", () => {
+  expect(firstRow(order({ customerFullName: 'x;"=1' }))).toContain(
+    `,"x;'""=1",`,
+  );
+});
+
+it("BE-5 CSV export : 1. leaves a semicolon or line break without a formula character after it as it is", () => {
+  expect(
+    buildOrdersCsv([order({ customerFullName: "a; b;c\n\nd\r\ne" })]),
+  ).toContain(',"a; b;c\n\nd\r\ne",');
 });
 
 it("BE-5 CSV export : 1. prefixes the title at purchase used as the Product title", () => {
