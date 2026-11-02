@@ -57,11 +57,11 @@ function toRows(order: StoredExportOrder) {
     order.id.slice(order.id.lastIndexOf("/") + 1),
     String(order.number),
     formatDecimal(order.totalPriceMinor, order.currencyCode),
-    joinList(order.paymentGateways),
-    order.customerEmail ?? "",
-    order.customerFullName ?? "",
-    order.customerAddress ?? "",
-    joinList(order.tags),
+    textCell(joinList(order.paymentGateways)),
+    textCell(order.customerEmail ?? ""),
+    textCell(order.customerFullName ?? ""),
+    textCell(order.customerAddress ?? ""),
+    textCell(joinList(order.tags)),
     // Seconds are the precision Shopify has, so no milliseconds.
     order.shopifyCreatedAt.toISOString().replace(/\.\d{3}Z$/, "Z"),
   ];
@@ -70,13 +70,19 @@ function toRows(order: StoredExportOrder) {
   }
   return order.lineItems.map(({ title, product }) => [
     ...orderColumns,
-    product?.title ?? title,
-    product ? joinList(product.tags) : "",
+    textCell(product?.title ?? title),
+    textCell(product ? joinList(product.tags) : ""),
   ]);
 }
 
 // A JSON array of strings, as stored, in one cell.
 const joinList = (stored: string) => (JSON.parse(stored) as string[]).join(", ");
+
+// Free text can start with something a spreadsheet would run as a formula, and quoting
+// does not stop it, so the cell gets a leading apostrophe. Numeric and generated
+// columns do not go through this, so that a negative total stays a number.
+const textCell = (value: string) =>
+  /^[=+\-@\t\r]/.test(value) ? `'${value}` : value;
 
 // RFC 4180.
 const escapeCell = (value: string) =>
