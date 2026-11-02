@@ -92,21 +92,27 @@ const ORDER_LIST_PAGE_SIZE = 50;
 
 interface ListOrdersOptions {
   after?: string;
+  before?: string;
   pageSize?: number;
 }
 
 // One page of a shop's orders, newest first, with the columns the order list shows.
-// `after` is the ID of the order the page starts after.
+// The page starts after the order with the ID `after`, or ends before the order with
+// the ID `before`.
 export async function listOrders(
   shop: string,
-  { after, pageSize = ORDER_LIST_PAGE_SIZE }: ListOrdersOptions = {},
+  { after, before, pageSize = ORDER_LIST_PAGE_SIZE }: ListOrdersOptions = {},
 ) {
+  const cursor = after ?? before;
+  const backwards = !after && Boolean(before);
+
   const orders = await db.order.findMany({
     where: { shop },
     orderBy: { shopifyCreatedAt: "desc" },
-    // One more than the page, to tell whether there is a next page.
-    take: pageSize + 1,
-    ...(after ? { cursor: { id: after }, skip: 1 } : {}),
+    // One more than the page, to tell whether there is another page in that
+    // direction. A negative take reads backwards and keeps the order.
+    take: backwards ? -(pageSize + 1) : pageSize + 1,
+    ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {}),
     select: {
       id: true,
       name: true,
@@ -119,10 +125,13 @@ export async function listOrders(
       tags: true,
     },
   });
+
+  const hasMore = orders.length > pageSize;
   return {
-    orders: orders.slice(0, pageSize),
-    hasNextPage: orders.length > pageSize,
-    hasPreviousPage: Boolean(after),
+    orders: backwards ? orders.slice(-pageSize) : orders.slice(0, pageSize),
+    // The cursor's order itself is on the side the page was read away from.
+    hasNextPage: backwards ? true : hasMore,
+    hasPreviousPage: backwards ? hasMore : Boolean(cursor),
   };
 }
 
