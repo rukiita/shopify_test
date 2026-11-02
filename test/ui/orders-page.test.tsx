@@ -166,3 +166,20 @@ it("BE-2 Order list : 1. next and previous change the cursor in the URL and keep
   expect(previous.get("shop")).toBe("test-shop.myshopify.com");
   expect(previous.get("host")).toBe("abc");
 });
+
+it("BE-2 Order list : 1. the empty state has the Sync button, and it is on the page once", async () => {
+  const buttons = (container: HTMLElement) =>
+    [...container.querySelectorAll("s-button")].map((b) => b.textContent);
+
+  const empty = renderOrders({ ordersLoader: () => page([]) });
+  await waitFor(() => {
+    expect(empty.container.querySelector("s-heading")).not.toBeNull();
+  });
+  expect(buttons(empty.container)).toEqual(["Sync orders"]);
+  expect(empty.container.textContent).toContain("last 60 days");
+  cleanup();
+
+  const listed = renderOrders({ ordersLoader: () => page([row(1)]) });
+  await table(listed.container);
+  expect(buttons(listed.container)).toEqual(["Sync orders"]);
+});

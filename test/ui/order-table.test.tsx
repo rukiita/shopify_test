@@ -21,6 +21,7 @@ const order: OrderListRow = {
 
 const props = {
   timeZone: "UTC",
+  emptyAction: null,
   loading: false,
   hasNextPage: false,
   hasPreviousPage: false,
@@ -148,7 +149,13 @@ it("BE-2 Order list : 1. a single page of orders has no pagination controls", ()
 });
 
 it("BE-2 Order list : 1. an empty state explains how orders arrive and points to Sync", () => {
-  const { container } = render(<OrderTable {...props} orders={[]} />);
+  const { container } = render(
+    <OrderTable
+      {...props}
+      orders={[]}
+      emptyAction={<s-button>Sync orders</s-button>}
+    />,
+  );
 
   expect(container.querySelector("s-table")).toBeNull();
   expect(container.querySelector("s-heading")?.textContent).toBe(
@@ -157,5 +164,5 @@ it("BE-2 Order list : 1. an empty state explains how orders arrive and points to
   expect(container.textContent).toContain(
     "New orders appear here when they are placed or changed in your store.",
   );
-  expect(container.textContent).toContain("Sync orders");
+  expect(container.querySelector("s-button")?.textContent).toBe("Sync orders");
 });
