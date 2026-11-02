@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
 import { cleanup, render } from "@testing-library/react";
+import { renderToString } from "react-dom/server";
 import { afterEach, expect, it } from "vitest";
 import { OrderTable } from "../../app/components/order-table";
 import type { OrderListRow } from "../../app/lib/domain/order-list-row";
@@ -96,7 +97,7 @@ it("BE-2 Order list : 1. a column with no value shows a dash", () => {
   ]);
 });
 
-it("BE-2 Order list : 1. nextpage and previouspage events call the handlers, and page availability is set on the table", () => {
+it("BE-2 Order list : 1. nextpage and previouspage events call the handlers, and page availability is on the table's attributes", () => {
   const calls: string[] = [];
   const pagination = {
     onNextPage: () => calls.push("next"),
@@ -111,12 +112,11 @@ it("BE-2 Order list : 1. nextpage and previouspage events call the handlers, and
       hasPreviousPage={false}
     />,
   );
-  // Properties: React 18 would write hasNextPage={false} as the attribute "false".
   const table = () => container.querySelector("s-table")!;
-  expect(table().paginate).toBe(true);
-  expect(table().hasNextPage).toBe(true);
-  expect(table().hasPreviousPage).toBe(false);
-  expect(table().loading).toBe(false);
+  expect(table().hasAttribute("paginate")).toBe(true);
+  expect(table().hasAttribute("hasNextPage")).toBe(true);
+  expect(table().hasAttribute("hasPreviousPage")).toBe(false);
+  expect(table().hasAttribute("loading")).toBe(false);
 
   // Polaris dispatches these on the element itself; they do not bubble.
   table().dispatchEvent(new Event("nextpage"));
@@ -133,19 +133,34 @@ it("BE-2 Order list : 1. nextpage and previouspage events call the handlers, and
       loading
     />,
   );
-  expect(table().hasNextPage).toBe(false);
-  expect(table().hasPreviousPage).toBe(true);
-  expect(table().loading).toBe(true);
+  expect(table().hasAttribute("hasNextPage")).toBe(false);
+  expect(table().hasAttribute("hasPreviousPage")).toBe(true);
+  expect(table().hasAttribute("loading")).toBe(true);
 
   // One handler per event after a rerender, not one per render.
   table().dispatchEvent(new Event("nextpage"));
   expect(calls).toEqual(["next", "previous", "next"]);
 });
 
+it("BE-2 Order list : 1. the server-rendered table already has its page availability", () => {
+  const html = renderToString(
+    <OrderTable {...props} orders={[order]} hasNextPage />,
+  );
+
+  const table = /<s-table[^>]*>/.exec(html)?.[0];
+  expect(table).toContain("paginate");
+  expect(table).toContain("hasNextPage");
+  // The attribute "false" would still read as true.
+  expect(table).not.toContain("hasPreviousPage");
+  expect(table).not.toContain("loading");
+});
+
 it("BE-2 Order list : 1. a single page of orders has no pagination controls", () => {
   const { container } = render(<OrderTable {...props} orders={[order]} />);
 
-  expect(container.querySelector("s-table")?.paginate).toBe(false);
+  expect(container.querySelector("s-table")?.hasAttribute("paginate")).toBe(
+    false,
+  );
 });
 
 it("BE-2 Order list : 1. an empty state explains how orders arrive and points to Sync", () => {
