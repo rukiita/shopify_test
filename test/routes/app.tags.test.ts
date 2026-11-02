@@ -63,3 +63,96 @@ it("BE-3 Add tag : 1. calls tagsAdd and updates the stored tags", async () => {
   expect(requests[0].variables).toEqual({ id: ORDER_ID, tags: ["VIP"] });
   expect(JSON.parse((await storedOrder()).tags)).toEqual(["VIP", "wholesale"]);
 });
+
+it("BE-3 Add tag : 1. stores the tags and updatedAt that Shopify returns", async () => {
+  // The stored copy is behind Shopify: "wholesale" was added in the admin.
+  await createOrder({ tags: [] });
+  mockAdminGraphql(SHOP, tagsAdded);
+
+  await addTag("VIP");
+
+  const stored = await storedOrder();
+  expect(JSON.parse(stored.tags)).toEqual(["VIP", "wholesale"]);
+  expect(stored.shopifyUpdatedAt).toEqual(
+    new Date(tagsAdded.data.tagsAdd.node.updatedAt),
+  );
+});
+
+it("BE-3 Add tag : 1. does not overwrite stored tags that are newer than the response", async () => {
+  await createOrder();
+  // An orders/updated for a later change is stored while tagsAdd is on its way back.
+  const newer = new Date("2026-11-02T08:00:00Z");
+  mockAdminGraphql(SHOP, async () => {
+    await db.order.update({
+      where: { id: ORDER_ID },
+      data: { tags: '["newer"]', shopifyUpdatedAt: newer },
+    });
+    return tagsAdded;
+  });
+
+  await addTag("VIP");
+
+  const stored = await storedOrder();
+  expect(JSON.parse(stored.tags)).toEqual(["newer"]);
+  expect(stored.shopifyUpdatedAt).toEqual(newer);
+});
+
+it("BE-3 Add tag : 1. a request whose access token Shopify rejects throws the 401 that makes App Bridge retry", async () => {
+  await createOrder();
+  mockAdminGraphql(
+    SHOP,
+    () =>
+      new Response(
+        JSON.stringify({ errors: "Invalid API key or access token" }),
+        { status: 401, headers: { "Content-Type": "application/json" } },
+      ),
+  );
+
+  const thrown = await addTag("VIP").catch((error: unknown) => error);
+
+  expect(thrown).toBeInstanceOf(Response);
+  expect((thrown as Response).status).toBe(401);
+});
+
+it("BE-3 Add tag : 1. rejects an order of another shop without calling Shopify", async () => {
+  await createOrder({ shop: "other-shop.myshopify.com" });
+  const requests = mockAdminGraphql(SHOP, tagsAdded);
+
+  const result = await addTag("VIP");
+
+  expect(result).toEqual({ error: "This order could not be found" });
+  expect(requests).toHaveLength(0);
+  expect(JSON.parse((await storedOrder()).tags)).toEqual(["wholesale"]);
+});
+
+it("BE-3 Add tag : 1. rejects a tag the order already has without calling Shopify", async () => {
+  await createOrder({ tags: ["VIP"] });
+  const requests = mockAdminGraphql(SHOP, tagsAdded);
+
+  const result = await addTag("vip");
+
+  expect(result).toEqual({ error: "This order already has that tag" });
+  expect(requests).toHaveLength(0);
+});
+
+it("BE-3 Add tag : 1. a request without a session token changes nothing", async () => {
+  await createOrder();
+  const requests = mockAdminGraphql(SHOP, tagsAdded);
+
+  const response = await action({
+    request: adminRequest(
+      "/app/tags",
+      undefined,
+      "POST",
+      new URLSearchParams({ intent: "add", orderId: ORDER_ID, tag: "VIP" }),
+    ),
+    params: {},
+    context: {},
+  } as ActionFunctionArgs).catch((thrown: unknown) => thrown);
+
+  // authenticate.admin treats it as a page load and throws a response that loads
+  // App Bridge to get a token, instead of running the action.
+  expect(response).toBeInstanceOf(Response);
+  expect(requests).toHaveLength(0);
+  expect(JSON.parse((await storedOrder()).tags)).toEqual(["wholesale"]);
+});
