@@ -46,8 +46,12 @@ const serverTimeZone = () => "UTC";
 // only fetch() carries the session token, which App Bridge adds to the request.
 async function downloadOrdersCsv() {
   const response = await fetch("/app/export");
-  if (!response.ok) {
-    throw new Error(`The export failed with status ${response.status}`);
+  // A request without a session token gets App Bridge's page, with status 200.
+  const contentType = response.headers.get("Content-Type");
+  if (!response.ok || !contentType?.startsWith("text/csv")) {
+    throw new Error(
+      `The export returned status ${response.status}, ${contentType}`,
+    );
   }
   const url = URL.createObjectURL(await response.blob());
   const link = document.createElement("a");
@@ -129,7 +133,8 @@ export default function Orders() {
     setExportFailed(false);
     try {
       await downloadOrdersCsv();
-    } catch {
+    } catch (error) {
+      console.error(error);
       setExportFailed(true);
     } finally {
       setExporting(false);

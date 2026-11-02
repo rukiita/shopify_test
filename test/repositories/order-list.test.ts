@@ -180,9 +180,10 @@ it("BE-5 CSV export : 1. reads a shop's orders newest first, with line items and
   expect(orders[0].lineItems).toEqual([
     {
       title: "At purchase",
+      quantity: 1,
       product: { title: "Product", tags: '["Winter"]' },
     },
-    { title: "Deleted", product: null },
+    { title: "Deleted", quantity: 1, product: null },
   ]);
   expect(orders[1].lineItems).toEqual([]);
 });

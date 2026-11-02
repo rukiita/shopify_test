@@ -22,6 +22,7 @@ type StoredLineItem = StoredExportOrder["lineItems"][number];
 
 const lineItem = (overrides: Partial<StoredLineItem> = {}): StoredLineItem => ({
   title: "Title at purchase",
+  quantity: 1,
   product: { title: "Product title", tags: '["Winter"]' },
   ...overrides,
 });
@@ -110,8 +111,33 @@ it("BE-5 CSV export : 1. writes one row with empty product columns for an order 
   expect(rows[0].split(",").slice(9)).toEqual(["", ""]);
 });
 
-it.each(["=", "+", "-", "@", "\t"])(
-  "BE-5 CSV export : 1. prefixes a text cell starting with =, +, -, @, tab or carriage return with an apostrophe (%j)",
+it("BE-5 CSV export : 1. leaves out a line item with quantity 0", () => {
+  const rows = lines(
+    buildOrdersCsv([
+      order({
+        lineItems: [
+          lineItem({ quantity: 0, product: { title: "Removed", tags: "[]" } }),
+          lineItem({ product: { title: "Kept", tags: "[]" } }),
+        ],
+      }),
+    ]),
+  ).slice(1);
+
+  expect(rows).toHaveLength(1);
+  expect(rows[0].split(",")[9]).toBe("Kept");
+});
+
+it("BE-5 CSV export : 1. writes one row with empty product columns for an order whose line items all have quantity 0", () => {
+  const rows = lines(
+    buildOrdersCsv([order({ lineItems: [lineItem({ quantity: 0 })] })]),
+  ).slice(1);
+
+  expect(rows).toHaveLength(1);
+  expect(rows[0].split(",").slice(9)).toEqual(["", ""]);
+});
+
+it.each(["=", "+", "-", "@", "\t", "\uFF1D", "\uFF0B", "\uFF0D", "\uFF20"])(
+  "BE-5 CSV export : 1. prefixes a text cell starting with a formula character with an apostrophe (%j)",
   (start) => {
     const value = `${start}1`;
     const cells = firstRow(
@@ -135,8 +161,20 @@ it.each(["=", "+", "-", "@", "\t"])(
   },
 );
 
-it("BE-5 CSV export : 1. prefixes a text cell starting with a carriage return, and quotes it", () => {
-  expect(firstRow(order({ tags: '["\\r1"]' }))).toContain(`,"'\r1",`);
+it.each(["\r", "\n"])(
+  "BE-5 CSV export : 1. prefixes a text cell starting with a line break, and quotes it (%j)",
+  (start) => {
+    const value = `${start}1`;
+    expect(firstRow(order({ tags: JSON.stringify([value]) }))).toContain(
+      `,"'${value}",`,
+    );
+  },
+);
+
+it("BE-5 CSV export : 1. quotes a value containing a semicolon, so that it stays one cell where the separator is a semicolon", () => {
+  expect(firstRow(order({ customerFullName: "Test;=1+1" }))).toContain(
+    ',"Test;=1+1",',
+  );
 });
 
 it("BE-5 CSV export : 1. prefixes the title at purchase used as the Product title", () => {

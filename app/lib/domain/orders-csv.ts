@@ -17,6 +17,7 @@ export const ORDER_EXPORT_COLUMNS = {
     orderBy: { id: "asc" },
     select: {
       title: true,
+      quantity: true,
       product: { select: { title: true, tags: true } },
     },
   },
@@ -51,8 +52,10 @@ export function buildOrdersCsv(orders: StoredExportOrder[]) {
   );
 }
 
-// One row per line item, repeating the order's columns. An order without line items
-// still gets a row, so that it does not go missing from the file.
+// One row per line item, repeating the order's columns. A line item with quantity 0 was
+// removed by an order edit or refunded, so it is not part of the order as it is now. An
+// order with no line items left still gets a row, so that it does not go missing from
+// the file.
 function toRows(order: StoredExportOrder) {
   const orderColumns = [
     // gid://shopify/Order/6663058751643 -> 6663058751643
@@ -67,10 +70,11 @@ function toRows(order: StoredExportOrder) {
     // Seconds are the precision Shopify has, so no milliseconds.
     order.shopifyCreatedAt.toISOString().replace(/\.\d{3}Z$/, "Z"),
   ];
-  if (order.lineItems.length === 0) {
+  const lineItems = order.lineItems.filter(({ quantity }) => quantity > 0);
+  if (lineItems.length === 0) {
     return [[...orderColumns, "", ""]];
   }
-  return order.lineItems.map(({ title, product }) => [
+  return lineItems.map(({ title, product }) => [
     ...orderColumns,
     textCell(product?.title ?? title),
     textCell(product ? joinList(product.tags) : ""),
@@ -82,11 +86,13 @@ const joinList = (stored: string) =>
   (JSON.parse(stored) as string[]).join(", ");
 
 // Free text can start with something a spreadsheet would run as a formula, and quoting
-// does not stop it, so the cell gets a leading apostrophe. Numeric and generated
-// columns do not go through this, so that a negative total stays a number.
+// does not stop it, so the cell gets a leading apostrophe. The characters are the ones
+// the OWASP page on CSV injection lists, including the full-width ＝＋－＠. Numeric and
+// generated columns do not go through this, so that a negative total stays a number.
 const textCell = (value: string) =>
-  /^[=+\-@\t\r]/.test(value) ? `'${value}` : value;
+  /^[=+\-@\t\r\n\uFF1D\uFF0B\uFF0D\uFF20]/.test(value) ? `'${value}` : value;
 
-// RFC 4180.
+// RFC 4180. A semicolon is quoted too: it is the separator in Excel in some locales,
+// where the rest of the value would become a cell of its own and could run as a formula.
 const escapeCell = (value: string) =>
-  /[",\r\n]/.test(value) ? `"${value.replaceAll('"', '""')}"` : value;
+  /[",;\r\n]/.test(value) ? `"${value.replaceAll('"', '""')}"` : value;
