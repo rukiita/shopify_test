@@ -105,3 +105,25 @@ it("BE-2 Order list : 1. keeps every order across pages when orders share a crea
   expect(await pageOf({ after: orderId(2) })).toEqual(["#1"]);
   expect(await pageOf({ before: orderId(2) })).toEqual(["#4", "#3"]);
 });
+
+it("BE-2 Order list : 1. returns the first page when the cursor is not one of the shop's orders", async () => {
+  await createOrder(1);
+  await createOrder(2);
+  // Older than both, so a cursor on it would otherwise read past the shop's orders.
+  await createOrder(0, { shop: "other-shop.myshopify.com" });
+  // Newer than both, so `before` would otherwise read past them the other way.
+  await createOrder(3, { shop: "other-shop.myshopify.com" });
+
+  for (const options of [
+    { after: orderId(0) },
+    { before: orderId(3) },
+    { after: orderId(99) },
+    { before: "not-an-id" },
+  ]) {
+    const page = await listOrders(SHOP, options);
+
+    expect(names(page)).toEqual(["#2", "#1"]);
+    expect(page.hasNextPage).toBe(false);
+    expect(page.hasPreviousPage).toBe(false);
+  }
+});
