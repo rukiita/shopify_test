@@ -75,3 +75,19 @@ it("BE-2 Order list : 1. excludes orders from other shops", async () => {
 
   expect(names(page)).toEqual(["#3", "#1"]);
 });
+
+it("BE-2 Order list : 1. returns the previous page from a cursor", async () => {
+  for (const number of [1, 2, 3, 4, 5]) {
+    await createOrder(number);
+  }
+
+  const middle = await listOrders(SHOP, { pageSize: 2, before: orderId(2) });
+  expect(names(middle)).toEqual(["#4", "#3"]);
+  expect(middle.hasNextPage).toBe(true);
+  expect(middle.hasPreviousPage).toBe(true);
+
+  const first = await listOrders(SHOP, { pageSize: 2, before: orderId(3) });
+  expect(names(first)).toEqual(["#5", "#4"]);
+  expect(first.hasNextPage).toBe(true);
+  expect(first.hasPreviousPage).toBe(false);
+});
