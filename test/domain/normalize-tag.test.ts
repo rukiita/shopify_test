@@ -18,3 +18,12 @@ it("BE-3 Add tag : 1. rejects a tag that already exists", () => {
   expect(normalizeTag(" VIP ", ["VIP"])).toEqual({ error });
   expect(normalizeTag("VIP", ["wholesale"])).toEqual({ tag: "VIP" });
 });
+
+it("BE-3 Add tag : 1. rejects a tag over the maximum length", () => {
+  const error = "A tag can have at most 55 characters";
+  expect(normalizeTag("x".repeat(55), [])).toEqual({ tag: "x".repeat(55) });
+  expect(normalizeTag("x".repeat(56), [])).toEqual({ error });
+  // Characters, not UTF-16 units: an emoji is two units and Shopify counts it as one.
+  expect(normalizeTag("😀".repeat(55), [])).toEqual({ tag: "😀".repeat(55) });
+  expect(normalizeTag("😀".repeat(56), [])).toEqual({ error });
+});
