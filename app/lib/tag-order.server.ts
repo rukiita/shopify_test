@@ -8,7 +8,9 @@ import { ADD_ORDER_TAG_MUTATION } from "./shopify/order-tags-mutation";
 
 export type TagResult = { ok: true } | { error: string };
 
-export const TAG_NOT_SAVED = { error: "The tag could not be saved. Try again." };
+export const TAG_NOT_SAVED = {
+  error: "The tag could not be saved. Try again.",
+};
 
 // Adds a tag to an order: Shopify first, then the stored copy (ADR-0004).
 export async function addOrderTag(

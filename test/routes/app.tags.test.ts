@@ -39,7 +39,8 @@ const createOrder = ({ shop = SHOP, tags = ["wholesale"] } = {}) =>
     },
   });
 
-const storedOrder = () => db.order.findUniqueOrThrow({ where: { id: ORDER_ID } });
+const storedOrder = () =>
+  db.order.findUniqueOrThrow({ where: { id: ORDER_ID } });
 
 const addTag = (tag: string) =>
   action({
