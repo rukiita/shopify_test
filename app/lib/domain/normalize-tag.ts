@@ -12,6 +12,10 @@ export function normalizeTag(
   if (!tag) {
     return { error: "Enter a tag" };
   }
+  // tagsAdd would split it into two tags.
+  if (tag.includes(",")) {
+    return { error: "A tag can't contain a comma" };
+  }
   // By character: Shopify counts an emoji as one, and `length` as two.
   if ([...tag].length > MAX_TAG_LENGTH) {
     return { error: `A tag can have at most ${MAX_TAG_LENGTH} characters` };
