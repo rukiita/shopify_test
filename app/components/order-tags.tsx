@@ -5,8 +5,10 @@ interface OrderTagsProps {
   orderName: string;
   tags: string[];
   saving: boolean;
-  // How the last attempt ended, once one has finished.
+  // How the last attempt to add a tag ended, once one has finished.
   result?: TagResult;
+  // Why the last attempt to remove a tag failed.
+  removeError?: string;
   onAdd: (tag: string) => void;
   onRemove: (tag: string) => void;
 }
@@ -17,6 +19,7 @@ export function OrderTags({
   tags,
   saving,
   result,
+  removeError,
   onAdd,
   onRemove,
 }: OrderTagsProps) {
@@ -25,12 +28,10 @@ export function OrderTags({
   // Cleared by replacing the element: Polaris can drop a property set from an effect
   // on a hydrated element (#2).
   const [fieldKey, setFieldKey] = useState(0);
-  // The result is of the last add or remove, and only an add clears the field.
-  const [adding, setAdding] = useState(false);
   const [lastResult, setLastResult] = useState(result);
   if (result !== lastResult) {
     setLastResult(result);
-    if (adding && result && "ok" in result) {
+    if (result && "ok" in result) {
       setFieldKey(fieldKey + 1);
     }
   }
@@ -47,7 +48,6 @@ export function OrderTags({
   const submit = (event: FormEvent) => {
     event.preventDefault();
     if (!saving) {
-      setAdding(true);
       onAdd(field.current!.value);
     }
   };
@@ -69,8 +69,9 @@ export function OrderTags({
                 icon="x"
                 accessibilityLabel={`Remove tag ${tag}`}
                 onClick={() => {
-                  setAdding(false);
-                  onRemove(tag);
+                  if (!saving) {
+                    onRemove(tag);
+                  }
                 }}
                 {...(saving ? { disabled: true } : {})}
               />
@@ -78,6 +79,7 @@ export function OrderTags({
           ))}
         </s-stack>
       )}
+      {removeError && !saving && <s-text tone="critical">{removeError}</s-text>}
       <form onSubmit={submit}>
         <s-grid
           gridTemplateColumns="1fr auto"
