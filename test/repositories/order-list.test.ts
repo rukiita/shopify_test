@@ -127,3 +127,16 @@ it("BE-2 Order list : 1. returns the first page when the cursor is not one of th
     expect(page.hasPreviousPage).toBe(false);
   }
 });
+
+it("BE-2 Order list : 1. returns the first page when nothing is past the cursor", async () => {
+  await createOrder(1);
+  await createOrder(2);
+
+  for (const options of [{ after: orderId(1) }, { before: orderId(2) }]) {
+    const page = await listOrders(SHOP, options);
+
+    expect(names(page)).toEqual(["#2", "#1"]);
+    expect(page.hasNextPage).toBe(false);
+    expect(page.hasPreviousPage).toBe(false);
+  }
+});
