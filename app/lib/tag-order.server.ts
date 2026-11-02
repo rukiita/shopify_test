@@ -4,7 +4,10 @@ import {
   findOrderTags,
   updateOrderTags,
 } from "./repositories/order-repository.server";
-import { ADD_ORDER_TAG_MUTATION } from "./shopify/order-tags-mutation";
+import {
+  ADD_ORDER_TAG_MUTATION,
+  REMOVE_ORDER_TAG_MUTATION,
+} from "./shopify/order-tags-mutation";
 
 export type TagResult = { ok: true } | { error: string };
 
@@ -54,4 +57,24 @@ export async function addOrderTag(
     console.error(`Adding a tag to ${orderId} of ${shop} failed`, error);
     return TAG_NOT_SAVED;
   }
+}
+
+// Removes a tag from an order: Shopify first, then the stored copy (ADR-0004).
+export async function removeOrderTag(
+  admin: AdminApiContext,
+  shop: string,
+  orderId: string,
+  tag: string,
+): Promise<TagResult> {
+  const response = await admin.graphql(REMOVE_ORDER_TAG_MUTATION, {
+    variables: { id: orderId, tags: [tag] },
+  });
+  const { data } = await response.json();
+  const node = data?.tagsRemove?.node;
+  if (!node || !("tags" in node)) {
+    throw new Error("tagsRemove returned no order");
+  }
+
+  await updateOrderTags(shop, orderId, node.tags, new Date(node.updatedAt));
+  return { ok: true };
 }
