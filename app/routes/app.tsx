@@ -1,4 +1,8 @@
-import type { HeadersFunction, LoaderFunctionArgs } from "react-router";
+import type {
+  HeadersFunction,
+  LoaderFunctionArgs,
+  ShouldRevalidateFunction,
+} from "react-router";
 import { Outlet, useLoaderData } from "react-router";
 import { boundary } from "@shopify/shopify-app-react-router/server";
 import { OrderListErrorBoundary } from "../components/order-list-error";
@@ -14,6 +18,20 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
   // eslint-disable-next-line no-undef
   return { apiKey: process.env.SHOPIFY_API_KEY || "" };
 };
+
+// A change of the query alone, such as the order list's page, needs nothing new from
+// this route, and the child route's loader authenticates the request itself. Skipping
+// this loader also keeps the nav on screen when that request fails: a failed request
+// fails every route it covers, and the topmost route's boundary would replace them all.
+export const shouldRevalidate: ShouldRevalidateFunction = ({
+  currentUrl,
+  nextUrl,
+  defaultShouldRevalidate,
+}) =>
+  currentUrl.pathname === nextUrl.pathname &&
+  currentUrl.search !== nextUrl.search
+    ? false
+    : defaultShouldRevalidate;
 
 export default function App() {
   const { apiKey } = useLoaderData<typeof loader>();
