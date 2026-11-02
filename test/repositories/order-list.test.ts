@@ -1,6 +1,9 @@
 import { beforeEach, expect, it } from "vitest";
 import db from "../../app/db.server";
-import { listOrders } from "../../app/lib/repositories/order-repository.server";
+import {
+  listOrders,
+  listOrdersForExport,
+} from "../../app/lib/repositories/order-repository.server";
 import { resetDatabase } from "../helpers/database";
 
 const SHOP = "test-shop.myshopify.com";
@@ -139,4 +142,56 @@ it("BE-2 Order list : 1. returns the first page when nothing is past the cursor"
     expect(page.hasNextPage).toBe(false);
     expect(page.hasPreviousPage).toBe(false);
   }
+});
+
+it("BE-5 CSV export : 1. reads a shop's orders newest first, with line items and products", async () => {
+  await createOrder(1);
+  await createOrder(2);
+  await db.product.create({
+    data: {
+      id: "gid://shopify/Product/1",
+      shop: SHOP,
+      title: "Product",
+      tags: '["Winter"]',
+      shopifyUpdatedAt: minutes(0),
+    },
+  });
+  await db.lineItem.createMany({
+    data: [
+      {
+        id: "gid://shopify/LineItem/2",
+        orderId: orderId(2),
+        title: "Deleted",
+        quantity: 1,
+      },
+      {
+        id: "gid://shopify/LineItem/1",
+        orderId: orderId(2),
+        productId: "gid://shopify/Product/1",
+        title: "At purchase",
+        quantity: 1,
+      },
+    ],
+  });
+
+  const orders = await listOrdersForExport(SHOP);
+
+  expect(orders.map((order) => order.number)).toEqual([2, 1]);
+  expect(orders[0].lineItems).toEqual([
+    {
+      title: "At purchase",
+      product: { title: "Product", tags: '["Winter"]' },
+    },
+    { title: "Deleted", product: null },
+  ]);
+  expect(orders[1].lineItems).toEqual([]);
+});
+
+it("BE-5 CSV export : 1. excludes orders from other shops", async () => {
+  await createOrder(1);
+  await createOrder(2, { shop: "other-shop.myshopify.com" });
+
+  const orders = await listOrdersForExport(SHOP);
+
+  expect(orders.map((order) => order.number)).toEqual([1]);
 });
