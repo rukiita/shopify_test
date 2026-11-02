@@ -134,3 +134,35 @@ it("BE-2 Order list : 1. Try again loads the page again without reloading the if
   await table(container);
   expect(container.querySelector("s-banner")).toBeNull();
 });
+
+it("BE-2 Order list : 1. next and previous change the cursor in the URL and keep the other parameters", async () => {
+  const urls: URL[] = [];
+  const { container } = renderOrders({
+    url: "/?shop=test-shop.myshopify.com&host=abc&before=gid%3A%2F%2Fshopify%2FOrder%2F9",
+    ordersLoader: ({ request }) => {
+      urls.push(new URL(request.url));
+      return page([row(5), row(4)]);
+    },
+  });
+  const loaded = async (count: number) => {
+    await waitFor(() => expect(urls).toHaveLength(count));
+    return urls[count - 1].searchParams;
+  };
+  const element = await table(container);
+
+  element.dispatchEvent(new Event("nextpage"));
+
+  const next = await loaded(2);
+  expect(next.get("after")).toBe("gid://shopify/Order/4");
+  expect(next.has("before")).toBe(false);
+  expect(next.get("shop")).toBe("test-shop.myshopify.com");
+  expect(next.get("host")).toBe("abc");
+
+  (await table(container)).dispatchEvent(new Event("previouspage"));
+
+  const previous = await loaded(3);
+  expect(previous.get("before")).toBe("gid://shopify/Order/5");
+  expect(previous.has("after")).toBe(false);
+  expect(previous.get("shop")).toBe("test-shop.myshopify.com");
+  expect(previous.get("host")).toBe("abc");
+});
