@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, type ReactNode } from "react";
 import {
   formatOrderDate,
   type OrderListRow,
@@ -8,6 +8,8 @@ interface OrderTableProps {
   orders: OrderListRow[];
   // The time zone to show the created time in.
   timeZone: string;
+  // Shown with the empty state, to get orders into the list.
+  emptyAction: ReactNode;
   loading: boolean;
   hasNextPage: boolean;
   hasPreviousPage: boolean;
@@ -17,18 +19,25 @@ interface OrderTableProps {
 
 // The order list (#2). Presentational: the page owns the data and the navigation.
 export function OrderTable(props: OrderTableProps) {
-  return props.orders.length > 0 ? <PagedTable {...props} /> : <NoOrders />;
+  return props.orders.length > 0 ? (
+    <PagedTable {...props} />
+  ) : (
+    <NoOrders action={props.emptyAction} />
+  );
 }
 
-function NoOrders() {
+function NoOrders({ action }: { action: ReactNode }) {
   return (
     <s-box padding="base">
-      <s-stack direction="block" gap="small-200">
-        <s-heading>No orders yet</s-heading>
-        <s-paragraph>
-          New orders appear here when they are placed or changed in your store.
-          To import orders placed before the app was installed, use Sync orders.
-        </s-paragraph>
+      <s-stack direction="block" gap="base">
+        <s-stack direction="block" gap="small-200">
+          <s-heading>No orders yet</s-heading>
+          <s-paragraph>
+            New orders appear here when they are placed or changed in your
+            store. Sync imports the orders from the last 60 days.
+          </s-paragraph>
+        </s-stack>
+        {action}
       </s-stack>
     </s-box>
   );

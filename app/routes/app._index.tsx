@@ -63,26 +63,33 @@ export default function Orders() {
   const syncOrders = () =>
     syncFetcher.submit({}, { method: "POST", action: "/app/sync" });
 
+  const syncButton = (
+    <SyncButton
+      syncing={syncFetcher.state !== "idle"}
+      synced={syncFetcher.data?.synced}
+      failed={syncFetcher.data?.failed}
+      onSync={syncOrders}
+    />
+  );
+
   return (
     <s-page heading="Orders">
-      <s-section>
-        <s-stack direction="block" gap="base">
-          <s-paragraph>
-            Webhooks only report orders placed or changed after the app was
-            installed. Sync imports the orders from the last 60 days.
-          </s-paragraph>
-          <SyncButton
-            syncing={syncFetcher.state !== "idle"}
-            synced={syncFetcher.data?.synced}
-            failed={syncFetcher.data?.failed}
-            onSync={syncOrders}
-          />
-        </s-stack>
-      </s-section>
+      {orders.length > 0 && (
+        <s-section>
+          <s-stack direction="block" gap="base">
+            <s-paragraph>
+              Webhooks only report orders placed or changed after the app was
+              installed. Sync imports the orders from the last 60 days.
+            </s-paragraph>
+            {syncButton}
+          </s-stack>
+        </s-section>
+      )}
       <s-section padding="none" accessibilityLabel="Orders">
         <OrderTable
           orders={orders}
           timeZone={timeZone}
+          emptyAction={syncButton}
           loading={navigation.state === "loading"}
           hasNextPage={hasNextPage}
           hasPreviousPage={hasPreviousPage}
