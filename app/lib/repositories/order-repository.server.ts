@@ -1,4 +1,5 @@
 import db from "../../db.server";
+import { ORDER_LIST_COLUMNS } from "../domain/order-list-row";
 import type { MappedOrder } from "../domain/order-mapper";
 import { shouldOverwrite } from "../domain/should-overwrite";
 
@@ -86,6 +87,72 @@ export async function findStoredUpdatedAt(shop: string, orderIds: string[]) {
     select: { id: true, shopifyUpdatedAt: true },
   });
   return new Map(stored.map((order) => [order.id, order.shopifyUpdatedAt]));
+}
+
+const ORDER_LIST_PAGE_SIZE = 50;
+
+interface ListOrdersOptions {
+  after?: string;
+  before?: string;
+  pageSize?: number;
+}
+
+// One page of a shop's orders, newest first, with the columns the order list shows.
+// The page starts after the order with the ID `after`, or ends before the order with
+// the ID `before`.
+export async function listOrders(
+  shop: string,
+  { after, before, pageSize = ORDER_LIST_PAGE_SIZE }: ListOrdersOptions = {},
+) {
+  // The cursor comes from the URL. Prisma would compare the shop's orders with any
+  // order it names, and return nothing for one that is gone, so anything but one of
+  // the shop's own orders gives the first page.
+  const requested = after ?? before;
+  const cursor = requested
+    ? (
+        await db.order.findFirst({
+          where: { id: requested, shop },
+          select: { id: true },
+        })
+      )?.id
+    : undefined;
+
+  const page = await readOrderPage(shop, pageSize, cursor, !after);
+  // A saved URL of the last page, once nothing is past its cursor. The first page, so
+  // the list does not look empty for a shop that has orders.
+  return cursor && page.orders.length === 0
+    ? readOrderPage(shop, pageSize)
+    : page;
+}
+
+async function readOrderPage(
+  shop: string,
+  pageSize: number,
+  cursor?: string,
+  beforeCursor = false,
+) {
+  const backwards = Boolean(cursor) && beforeCursor;
+
+  const orders = await db.order.findMany({
+    where: { shop },
+    // By ID too, because the created time is not unique. Orders created in the same
+    // second get a defined order, and Prisma pages in SQL: with an orderBy that is not
+    // unique it reads every order up to the cursor and pages in memory.
+    orderBy: [{ shopifyCreatedAt: "desc" }, { id: "desc" }],
+    // One more than the page, to tell whether there is another page in that
+    // direction. A negative take reads backwards and keeps the order.
+    take: backwards ? -(pageSize + 1) : pageSize + 1,
+    ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {}),
+    select: ORDER_LIST_COLUMNS,
+  });
+
+  const hasMore = orders.length > pageSize;
+  return {
+    orders: backwards ? orders.slice(-pageSize) : orders.slice(0, pageSize),
+    // The cursor's order itself is on the side the page was read away from.
+    hasNextPage: backwards ? true : hasMore,
+    hasPreviousPage: backwards ? hasMore : Boolean(cursor),
+  };
 }
 
 // Removes the customer's email, name and address from the given orders of a shop

@@ -34,10 +34,10 @@ export function sessionToken(shop: string, secret: string = TEST_API_SECRET) {
   return `${header}.${payload}.${signature}`;
 }
 
-// A POST from the embedded app to an app route, e.g. `/app/sync`.
-export function adminRequest(path: string, token?: string) {
+// A request from the embedded app to an app route, e.g. a POST to `/app/sync`.
+export function adminRequest(path: string, token?: string, method = "POST") {
   return new Request(new URL(path, TEST_APP_URL), {
-    method: "POST",
+    method,
     headers: token ? { Authorization: `Bearer ${token}` } : {},
   });
 }

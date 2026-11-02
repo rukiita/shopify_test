@@ -1,273 +1,107 @@
-import { useEffect } from "react";
-import type {
-  ActionFunctionArgs,
-  HeadersFunction,
-  LoaderFunctionArgs,
+import { useSyncExternalStore } from "react";
+import type { HeadersFunction, LoaderFunctionArgs } from "react-router";
+import {
+  useFetcher,
+  useLoaderData,
+  useNavigation,
+  useSearchParams,
 } from "react-router";
-import { useFetcher } from "react-router";
-import { useAppBridge } from "@shopify/app-bridge-react";
-import { authenticate } from "../shopify.server";
 import { boundary } from "@shopify/shopify-app-react-router/server";
+import { OrderListErrorBoundary } from "../components/order-list-error";
+import { OrderTable } from "../components/order-table";
 import { SyncButton } from "../components/sync-button";
+import { toOrderListRow } from "../lib/domain/order-list-row";
+import { listOrders } from "../lib/repositories/order-repository.server";
+import { authenticate } from "../shopify.server";
 import type { action as syncAction } from "./app.sync";
 
+// The order list (#2). Reads the app's copy of the orders, so showing a page makes
+// no Shopify API call.
 export const loader = async ({ request }: LoaderFunctionArgs) => {
-  await authenticate.admin(request);
+  const { session } = await authenticate.admin(request);
 
-  return null;
+  const { searchParams } = new URL(request.url);
+  const page = await listOrders(session.shop, {
+    after: searchParams.get("after") ?? undefined,
+    before: searchParams.get("before") ?? undefined,
+  });
+
+  return { ...page, orders: page.orders.map(toOrderListRow) };
 };
 
-export const action = async ({ request }: ActionFunctionArgs) => {
-  const { admin } = await authenticate.admin(request);
-  const color = ["Red", "Orange", "Yellow", "Green"][
-    Math.floor(Math.random() * 4)
-  ];
-  const response = await admin.graphql(
-    `#graphql
-      mutation populateProduct($product: ProductCreateInput!) {
-        productCreate(product: $product) {
-          product {
-            id
-            title
-            handle
-            status
-            variants(first: 10) {
-              edges {
-                node {
-                  id
-                  price
-                  barcode
-                  createdAt
-                }
-              }
-            }
-          }
-        }
-      }`,
-    {
-      variables: {
-        product: {
-          title: `${color} Snowboard`,
-        },
-      },
-    },
-  );
-  const responseJson = await response.json();
+// The time zone never changes while the page is open.
+const subscribeToTimeZone = () => () => {};
+const browserTimeZone = () => Intl.DateTimeFormat().resolvedOptions().timeZone;
+// The server does not know the browser's time zone, so it renders UTC and the first
+// client render switches to the browser's without a hydration mismatch.
+const serverTimeZone = () => "UTC";
 
-  const product = responseJson.data!.productCreate!.product!;
-  const variantId = product.variants.edges[0]!.node!.id!;
-
-  const variantResponse = await admin.graphql(
-    `#graphql
-    mutation shopifyReactRouterTemplateUpdateVariant($productId: ID!, $variants: [ProductVariantsBulkInput!]!) {
-      productVariantsBulkUpdate(productId: $productId, variants: $variants) {
-        productVariants {
-          id
-          price
-          barcode
-          createdAt
-        }
-      }
-    }`,
-    {
-      variables: {
-        productId: product.id,
-        variants: [{ id: variantId, price: "100.00" }],
-      },
-    },
+export default function Orders() {
+  const { orders, hasNextPage, hasPreviousPage } =
+    useLoaderData<typeof loader>();
+  const navigation = useNavigation();
+  const [, setSearchParams] = useSearchParams();
+  const timeZone = useSyncExternalStore(
+    subscribeToTimeZone,
+    browserTimeZone,
+    serverTimeZone,
   );
 
-  const variantResponseJson = await variantResponse.json();
-
-  return {
-    product: responseJson!.data!.productCreate!.product,
-    variant:
-      variantResponseJson!.data!.productVariantsBulkUpdate!.productVariants,
+  // Keeps the other parameters: the embedded app's URL carries `shop`, `host` etc.
+  const goToPage = (cursor: "after" | "before", orderId?: string) => {
+    if (!orderId) return;
+    setSearchParams((current) => {
+      const next = new URLSearchParams(current);
+      next.delete("after");
+      next.delete("before");
+      next.set(cursor, orderId);
+      return next;
+    });
   };
-};
-
-export default function Index() {
-  const fetcher = useFetcher<typeof action>();
-
-  const shopify = useAppBridge();
-  const isLoading =
-    ["loading", "submitting"].includes(fetcher.state) &&
-    fetcher.formMethod === "POST";
-
-  useEffect(() => {
-    if (fetcher.data?.product?.id) {
-      shopify.toast.show("Product created");
-    }
-  }, [fetcher.data?.product?.id, shopify]);
-
-  const generateProduct = () => fetcher.submit({}, { method: "POST" });
 
   const syncFetcher = useFetcher<typeof syncAction>();
   const syncOrders = () =>
     syncFetcher.submit({}, { method: "POST", action: "/app/sync" });
 
+  const syncButton = (
+    <SyncButton
+      syncing={syncFetcher.state !== "idle"}
+      synced={syncFetcher.data?.synced}
+      failed={syncFetcher.data?.failed}
+      onSync={syncOrders}
+    />
+  );
+
   return (
-    <s-page heading="Shopify app template">
-      <s-section heading="Orders">
-        <s-stack direction="block" gap="base">
-          <s-paragraph>
-            Webhooks only report orders placed or changed after the app was
-            installed. Sync imports the orders from the last 60 days.
-          </s-paragraph>
-          <SyncButton
-            syncing={syncFetcher.state !== "idle"}
-            synced={syncFetcher.data?.synced}
-            failed={syncFetcher.data?.failed}
-            onSync={syncOrders}
-          />
-        </s-stack>
-      </s-section>
-      <s-button slot="primary-action" onClick={generateProduct}>
-        Generate a product
-      </s-button>
-
-      <s-section heading="Congrats on creating a new Shopify app 🎉">
-        <s-paragraph>
-          This embedded app template uses{" "}
-          <s-link
-            href="https://shopify.dev/docs/apps/tools/app-bridge"
-            target="_blank"
-          >
-            App Bridge
-          </s-link>{" "}
-          interface examples like an{" "}
-          <s-link href="/app/additional">additional page in the app nav</s-link>
-          , as well as an{" "}
-          <s-link
-            href="https://shopify.dev/docs/api/admin-graphql"
-            target="_blank"
-          >
-            Admin GraphQL
-          </s-link>{" "}
-          mutation demo, to provide a starting point for app development.
-        </s-paragraph>
-      </s-section>
-      <s-section heading="Get started with products">
-        <s-paragraph>
-          Generate a product with GraphQL and get the JSON output for that
-          product. Learn more about the{" "}
-          <s-link
-            href="https://shopify.dev/docs/api/admin-graphql/latest/mutations/productCreate"
-            target="_blank"
-          >
-            productCreate
-          </s-link>{" "}
-          mutation in our API references.
-        </s-paragraph>
-        <s-stack direction="inline" gap="base">
-          <s-button
-            onClick={generateProduct}
-            {...(isLoading ? { loading: true } : {})}
-          >
-            Generate a product
-          </s-button>
-          {fetcher.data?.product && (
-            <s-button
-              onClick={() => {
-                shopify.intents.invoke?.("edit:shopify/Product", {
-                  value: fetcher.data?.product?.id,
-                });
-              }}
-              target="_blank"
-              variant="tertiary"
-            >
-              Edit product
-            </s-button>
-          )}
-        </s-stack>
-        {fetcher.data?.product && (
-          <s-section heading="productCreate mutation">
-            <s-stack direction="block" gap="base">
-              <s-box
-                padding="base"
-                borderWidth="base"
-                borderRadius="base"
-                background="subdued"
-              >
-                <pre style={{ margin: 0 }}>
-                  <code>{JSON.stringify(fetcher.data.product, null, 2)}</code>
-                </pre>
-              </s-box>
-
-              <s-heading>productVariantsBulkUpdate mutation</s-heading>
-              <s-box
-                padding="base"
-                borderWidth="base"
-                borderRadius="base"
-                background="subdued"
-              >
-                <pre style={{ margin: 0 }}>
-                  <code>{JSON.stringify(fetcher.data.variant, null, 2)}</code>
-                </pre>
-              </s-box>
-            </s-stack>
-          </s-section>
-        )}
-      </s-section>
-
-      <s-section slot="aside" heading="App template specs">
-        <s-paragraph>
-          <s-text>Framework: </s-text>
-          <s-link href="https://reactrouter.com/" target="_blank">
-            React Router
-          </s-link>
-        </s-paragraph>
-        <s-paragraph>
-          <s-text>Interface: </s-text>
-          <s-link
-            href="https://shopify.dev/docs/api/app-home/using-polaris-components"
-            target="_blank"
-          >
-            Polaris web components
-          </s-link>
-        </s-paragraph>
-        <s-paragraph>
-          <s-text>API: </s-text>
-          <s-link
-            href="https://shopify.dev/docs/api/admin-graphql"
-            target="_blank"
-          >
-            GraphQL
-          </s-link>
-        </s-paragraph>
-        <s-paragraph>
-          <s-text>Database: </s-text>
-          <s-link href="https://www.prisma.io/" target="_blank">
-            Prisma
-          </s-link>
-        </s-paragraph>
-      </s-section>
-
-      <s-section slot="aside" heading="Next steps">
-        <s-unordered-list>
-          <s-list-item>
-            Build an{" "}
-            <s-link
-              href="https://shopify.dev/docs/apps/getting-started/build-app-example"
-              target="_blank"
-            >
-              example app
-            </s-link>
-          </s-list-item>
-          <s-list-item>
-            Explore Shopify&apos;s API with{" "}
-            <s-link
-              href="https://shopify.dev/docs/apps/tools/graphiql-admin-api"
-              target="_blank"
-            >
-              GraphiQL
-            </s-link>
-          </s-list-item>
-        </s-unordered-list>
+    <s-page heading="Orders">
+      {orders.length > 0 && (
+        <s-section>
+          <s-stack direction="block" gap="base">
+            <s-paragraph>
+              Webhooks only report orders placed or changed after the app was
+              installed. Sync imports the orders from the last 60 days.
+            </s-paragraph>
+            {syncButton}
+          </s-stack>
+        </s-section>
+      )}
+      <s-section padding="none" accessibilityLabel="Orders">
+        <OrderTable
+          orders={orders}
+          timeZone={timeZone}
+          emptyAction={syncButton}
+          loading={navigation.state === "loading"}
+          hasNextPage={hasNextPage}
+          hasPreviousPage={hasPreviousPage}
+          onNextPage={() => goToPage("after", orders.at(-1)?.id)}
+          onPreviousPage={() => goToPage("before", orders[0]?.id)}
+        />
       </s-section>
     </s-page>
   );
 }
+
+export const ErrorBoundary = OrderListErrorBoundary;
 
 export const headers: HeadersFunction = (headersArgs) => {
   return boundary.headers(headersArgs);
