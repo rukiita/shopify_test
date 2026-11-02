@@ -62,7 +62,7 @@ it("BE-5 CSV export : 1. writes the header row in CSV template order", () => {
 it("BE-5 CSV export : 1. starts with a UTF-8 BOM and ends rows with CRLF", () => {
   const csv = buildOrdersCsv([order()]);
 
-  expect(csv.startsWith("﻿Order id,")).toBe(true);
+  expect(csv.startsWith("\uFEFFOrder id,")).toBe(true);
   expect(csv.endsWith("\r\n")).toBe(true);
   expect(csv.replaceAll("\r\n", "")).not.toMatch(/[\r\n]/);
 });

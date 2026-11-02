@@ -41,7 +41,7 @@ it("BE-5 CSV export : 1. the loader returns the shop's orders as a CSV download"
   const order =
     '6663058751643,1006,1385.95,bogus,test.buyer+1@example.com,Test Buyer,"123 Test Street, Apt 4, Building B, San Francisco CA 94103, United States",Snowboard,2026-11-01T05:17:27Z';
   expect(body).toBe(
-    "﻿" +
+    "\uFEFF" +
       [
         "Order id,Order number,Total price,Payment gateway,Customer email,Customer full name,Customer address,Tags,Created at,Product title,Product tags",
         `${order},The Compare at Price Snowboard,"Accessory, Sport, Winter"`,

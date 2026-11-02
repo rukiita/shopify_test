@@ -23,19 +23,28 @@ export function toMinorUnits(amount: string, currencyCode: string): bigint {
 }
 
 // Formats an amount in the currency's minor unit for display: 1199n USD -> "$11.99".
-// Works on the digits, never on a float, so the result is exact at any size.
 export function formatMoney(minorUnits: bigint, currencyCode: string): string {
+  // format() reads a decimal string exactly (ES2023; the app runs on Node 22 or
+  // later). The cast is needed because tsconfig's ES2022 lib only declares numbers.
+  return currencyFormat(currencyCode).format(
+    formatDecimal(minorUnits, currencyCode) as unknown as number,
+  );
+}
+
+// An amount in the currency's minor unit as a plain decimal: 1199n USD -> "11.99",
+// 1500n JPY -> "1500". Works on the digits, never on a float, so the result is exact
+// at any size.
+export function formatDecimal(
+  minorUnits: bigint,
+  currencyCode: string,
+): string {
   const fractionDigits = currencyFractionDigits(currencyCode);
   const digits = (minorUnits < 0n ? -minorUnits : minorUnits)
     .toString()
     .padStart(fractionDigits + 1, "0");
   const whole = digits.slice(0, digits.length - fractionDigits);
   const fraction = digits.slice(digits.length - fractionDigits);
-  const decimal = `${minorUnits < 0n ? "-" : ""}${whole}.${fraction}`;
-
-  // format() reads a decimal string exactly (ES2023; the app runs on Node 22 or
-  // later). The cast is needed because tsconfig's ES2022 lib only declares numbers.
-  return currencyFormat(currencyCode).format(decimal as unknown as number);
+  return `${minorUnits < 0n ? "-" : ""}${whole}${fraction && `.${fraction}`}`;
 }
 
 // Kept per currency: a page formats every row.
