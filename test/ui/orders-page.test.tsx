@@ -184,7 +184,9 @@ it("BE-2 Order list : 1. the empty state has the Sync button, and it is on the p
 
   const listed = renderOrders({ ordersLoader: () => page([row(1)]) });
   await table(listed.container);
-  expect(buttons(listed.container)).toEqual(["Sync orders"]);
+  expect(
+    buttons(listed.container).filter((text) => text === "Sync orders"),
+  ).toHaveLength(1);
 });
 
 it("BE-3 Add tag : 1. the order list sends the tag to the tag action, and shows the order's new tags", async () => {

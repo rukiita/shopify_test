@@ -9,11 +9,16 @@ import {
 import { boundary } from "@shopify/shopify-app-react-router/server";
 import { OrderListErrorBoundary } from "../components/order-list-error";
 import { OrderTable } from "../components/order-table";
+import { OrderTags } from "../components/order-tags";
 import { SyncButton } from "../components/sync-button";
-import { toOrderListRow } from "../lib/domain/order-list-row";
+import {
+  toOrderListRow,
+  type OrderListRow,
+} from "../lib/domain/order-list-row";
 import { listOrders } from "../lib/repositories/order-repository.server";
 import { authenticate } from "../shopify.server";
 import type { action as syncAction } from "./app.sync";
+import type { action as tagsAction } from "./app.tags";
 
 // The order list (#2). Reads the app's copy of the orders, so showing a page makes
 // no Shopify API call.
@@ -35,6 +40,26 @@ const browserTimeZone = () => Intl.DateTimeFormat().resolvedOptions().timeZone;
 // The server does not know the browser's time zone, so it renders UTC and the first
 // client render switches to the browser's without a hydration mismatch.
 const serverTimeZone = () => "UTC";
+
+// One fetcher per order, so that saving and the result stay on that order's row.
+function OrderTagsCell({ order }: { order: OrderListRow }) {
+  const fetcher = useFetcher<typeof tagsAction>();
+
+  return (
+    <OrderTags
+      orderName={order.name}
+      tags={order.tags}
+      saving={fetcher.state !== "idle"}
+      result={fetcher.data}
+      onAdd={(tag) =>
+        fetcher.submit(
+          { intent: "add", orderId: order.id, tag },
+          { method: "POST", action: "/app/tags" },
+        )
+      }
+    />
+  );
+}
 
 export default function Orders() {
   const { orders, hasNextPage, hasPreviousPage } =
@@ -90,6 +115,7 @@ export default function Orders() {
           orders={orders}
           timeZone={timeZone}
           emptyAction={syncButton}
+          renderTags={(order) => <OrderTagsCell order={order} />}
           loading={navigation.state === "loading"}
           hasNextPage={hasNextPage}
           hasPreviousPage={hasPreviousPage}
