@@ -2,15 +2,18 @@ import type { ActionFunctionArgs } from "react-router";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import db from "../../app/db.server";
 import { action } from "../../app/routes/app.tags";
+import { action as ordersWebhookAction } from "../../app/routes/webhooks.orders";
 import tagsAddInvalid from "../fixtures/tags-add-invalid.json";
 import tagsAddMissingOrder from "../fixtures/tags-add-missing-order.json";
 import tagsAdded from "../fixtures/tags-add.json";
 import tagsRemoveMissingOrder from "../fixtures/tags-remove-missing-order.json";
 import tagsRemoved from "../fixtures/tags-remove.json";
+import { fixtureOrder, fixtures } from "../helpers/order-fixtures";
 import { mockAdminGraphql, resetAdminGraphql } from "../helpers/admin-graphql";
 import { resetDatabase } from "../helpers/database";
 import { createOfflineSession } from "../helpers/session";
 import { adminRequest, sessionToken } from "../helpers/session-token";
+import { signedWebhookRequest } from "../helpers/webhook";
 
 const SHOP = "test-shop.myshopify.com";
 // The order in the captured responses to the tag mutations.
@@ -313,4 +316,64 @@ it("BE-4 Remove tag : 1. rejects an order of another shop without calling Shopif
   expect(result).toEqual({ error: "This order could not be found" });
   expect(requests).toHaveLength(0);
   expect(JSON.parse((await storedOrder()).tags)).toEqual(["VIP"]);
+});
+
+it("BE-4 Remove tag : 1. keeps the order's other tags", async () => {
+  await createOrder({ tags: ["VIP", "wholesale"] });
+  const requests = mockAdminGraphql(SHOP, tagsRemoved);
+
+  await removeTag("VIP");
+
+  expect(requests[0].variables?.tags).toEqual(["VIP"]);
+  expect(JSON.parse((await storedOrder()).tags)).toContain("wholesale");
+});
+
+// An orders/updated for the order, whose refetch returns `tags` and `updatedAt`.
+async function deliverOrdersUpdated(tags: string[], updatedAt: string) {
+  const order = {
+    ...fixtureOrder(fixtures.regular),
+    id: ORDER_ID,
+    tags,
+    updatedAt,
+  };
+  mockAdminGraphql(SHOP, { data: { order } });
+  await ordersWebhookAction({
+    request: signedWebhookRequest({
+      path: "/webhooks/orders",
+      topic: "orders/updated",
+      shop: SHOP,
+      body: { admin_graphql_api_id: ORDER_ID },
+    }),
+    params: {},
+    context: {},
+  } as ActionFunctionArgs);
+}
+
+it("BE-4 Remove tag : 1. a fetch from before the removal does not bring the tag back", async () => {
+  await createOrder({ tags: ["VIP", "wholesale"] });
+  mockAdminGraphql(SHOP, tagsRemoved);
+  await removeTag("VIP");
+
+  // A webhook for an earlier change read the order before the removal, and its write
+  // comes last: the tag is still there, with the updatedAt the stored copy had.
+  await deliverOrdersUpdated(
+    ["VIP", "wholesale"],
+    STORED_UPDATED_AT.toISOString(),
+  );
+
+  expect(JSON.parse((await storedOrder()).tags)).toEqual(["wholesale"]);
+});
+
+it("BE-4 Remove tag : 1. an orders/updated after the removal does not bring the tag back", async () => {
+  await createOrder({ tags: ["VIP", "wholesale"] });
+  mockAdminGraphql(SHOP, tagsRemoved);
+  await removeTag("VIP");
+
+  // The webhook for the removal itself: the refetch returns the state after it.
+  const { tags, updatedAt } = tagsRemoved.data.tagsRemove.node;
+  await deliverOrdersUpdated(tags, updatedAt);
+
+  const stored = await storedOrder();
+  expect(JSON.parse(stored.tags)).toEqual(["wholesale"]);
+  expect(stored.shopifyUpdatedAt).toEqual(new Date(updatedAt));
 });
