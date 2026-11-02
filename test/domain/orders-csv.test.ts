@@ -22,6 +22,7 @@ type StoredLineItem = StoredExportOrder["lineItems"][number];
 
 const lineItem = (overrides: Partial<StoredLineItem> = {}): StoredLineItem => ({
   title: "Title at purchase",
+  quantity: 1,
   product: { title: "Product title", tags: '["Winter"]' },
   ...overrides,
 });
@@ -107,6 +108,31 @@ it("BE-5 CSV export : 1. writes one row with empty product columns for an order 
 
   expect(rows).toHaveLength(1);
   expect(rows[0].split(",")[0]).toBe("6663058751643");
+  expect(rows[0].split(",").slice(9)).toEqual(["", ""]);
+});
+
+it("BE-5 CSV export : 1. leaves out a line item with quantity 0", () => {
+  const rows = lines(
+    buildOrdersCsv([
+      order({
+        lineItems: [
+          lineItem({ quantity: 0, product: { title: "Removed", tags: "[]" } }),
+          lineItem({ product: { title: "Kept", tags: "[]" } }),
+        ],
+      }),
+    ]),
+  ).slice(1);
+
+  expect(rows).toHaveLength(1);
+  expect(rows[0].split(",")[9]).toBe("Kept");
+});
+
+it("BE-5 CSV export : 1. writes one row with empty product columns for an order whose line items all have quantity 0", () => {
+  const rows = lines(
+    buildOrdersCsv([order({ lineItems: [lineItem({ quantity: 0 })] })]),
+  ).slice(1);
+
+  expect(rows).toHaveLength(1);
   expect(rows[0].split(",").slice(9)).toEqual(["", ""]);
 });
 
