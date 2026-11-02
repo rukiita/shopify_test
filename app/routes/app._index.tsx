@@ -1,4 +1,4 @@
-import { useSyncExternalStore } from "react";
+import { useState, useSyncExternalStore } from "react";
 import type { HeadersFunction, LoaderFunctionArgs } from "react-router";
 import {
   useFetcher,
@@ -7,6 +7,7 @@ import {
   useSearchParams,
 } from "react-router";
 import { boundary } from "@shopify/shopify-app-react-router/server";
+import { ExportButton } from "../components/export-button";
 import { OrderListErrorBoundary } from "../components/order-list-error";
 import { OrderTable } from "../components/order-table";
 import { OrderTags } from "../components/order-tags";
@@ -40,6 +41,22 @@ const browserTimeZone = () => Intl.DateTimeFormat().resolvedOptions().timeZone;
 // The server does not know the browser's time zone, so it renders UTC and the first
 // client render switches to the browser's without a hydration mismatch.
 const serverTimeZone = () => "UTC";
+
+// Saves the shop's orders as a file. A plain link would not do: in the admin's iframe
+// only fetch() carries the session token, which App Bridge adds to the request.
+async function downloadOrdersCsv() {
+  const response = await fetch("/app/export");
+  if (!response.ok) {
+    throw new Error(`The export failed with status ${response.status}`);
+  }
+  const url = URL.createObjectURL(await response.blob());
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = "orders.csv";
+  link.click();
+  // Not at once: the browser may still be reading it for the download.
+  setTimeout(() => URL.revokeObjectURL(url), 60_000);
+}
 
 // The row's own fetchers, so that saving and the result stay on that order's row. One each
 // for adding and removing, because only an added tag clears the field, and the two show
@@ -105,6 +122,20 @@ export default function Orders() {
   const syncOrders = () =>
     syncFetcher.submit({}, { method: "POST", action: "/app/sync" });
 
+  const [exporting, setExporting] = useState(false);
+  const [exportFailed, setExportFailed] = useState(false);
+  const exportOrders = async () => {
+    setExporting(true);
+    setExportFailed(false);
+    try {
+      await downloadOrdersCsv();
+    } catch {
+      setExportFailed(true);
+    } finally {
+      setExporting(false);
+    }
+  };
+
   const syncButton = (
     <SyncButton
       syncing={syncFetcher.state !== "idle"}
@@ -123,7 +154,14 @@ export default function Orders() {
               Webhooks only report orders placed or changed after the app was
               installed. Sync imports the orders from the last 60 days.
             </s-paragraph>
-            {syncButton}
+            <s-stack direction="inline" gap="base">
+              {syncButton}
+              <ExportButton
+                exporting={exporting}
+                failed={exportFailed}
+                onExport={exportOrders}
+              />
+            </s-stack>
           </s-stack>
         </s-section>
       )}
