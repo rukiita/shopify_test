@@ -89,3 +89,27 @@ it("BE-2 Order list : 1. a failure of both the app route and the order list show
     );
   });
 });
+
+it("BE-2 Order list : 1. changing page does not run the app route's loader again, so a failure keeps the nav", async () => {
+  let appLoads = 0;
+  let orderLoads = 0;
+  const { container } = renderOrders({
+    appLoader: () => {
+      appLoads += 1;
+      return null;
+    },
+    ordersLoader: () => {
+      orderLoads += 1;
+      if (orderLoads > 1) throw new TypeError("Failed to fetch");
+      return page([row(2), row(1)]);
+    },
+  });
+
+  (await table(container)).dispatchEvent(new Event("nextpage"));
+
+  await waitFor(() => {
+    expect(container.querySelector("s-banner")).not.toBeNull();
+  });
+  expect(appLoads).toBe(1);
+  expect(container.querySelector("nav")?.textContent).toBe("Nav");
+});
