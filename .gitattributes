@@ -1,1 +1,1 @@
-samples/orders.csv -text
+samples/orders.csv -text whitespace=cr-at-eol

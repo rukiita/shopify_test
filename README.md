@@ -230,7 +230,7 @@ The address lines from Shopify (`formatted`, without the name) are joined with `
 
 Merchants download the file with the **Export CSV** button above the order list, which is shown once the shop has orders. The file has all of the shop's orders, newest first, with an order's rows in a stable order, and is built from the app's database, so an export makes no Shopify API call. An order with no line items left still gets one row, with the product columns empty.
 
-[`samples/orders.csv`](samples/orders.csv) is a sample of the file. Its orders are made-up test data, written by the same code as the export (`buildOrdersCsv`) rather than downloaded from a store, so that it can show cases such as commas, quotes and formula cells together.
+[`samples/orders.csv`](samples/orders.csv) is a sample of the file. Its orders are made-up test data, written by the same code as the export (`buildOrdersCsv`) rather than downloaded from a store, so that it can show cases such as commas, quotes and formula cells together. `test/domain/orders-csv-sample.test.ts` holds those orders and fails if the file no longer matches what the export writes.
 
 ### Distribution: public
 
