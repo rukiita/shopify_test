@@ -112,21 +112,32 @@ it("BE-4 Remove tag : 1. each tag has a remove button", () => {
 });
 
 it("BE-4 Remove tag : 1. the remove button is disabled while saving", () => {
-  const { container } = render(<OrderTags {...props} saving />);
+  const onRemove = vi.fn();
+  const { container } = render(
+    <OrderTags {...props} onRemove={onRemove} saving />,
+  );
 
   const buttons = removeButtons(container);
   expect(buttons).toHaveLength(2);
   for (const button of buttons) {
     expect(button.hasAttribute("disabled")).toBe(true);
   }
+
+  // A click that reaches the element anyway does not send a second request.
+  fireEvent.click(buttons[0]);
+  expect(onRemove).not.toHaveBeenCalled();
 });
 
-it("BE-4 Remove tag : 1. removing a tag keeps what was typed in the field", () => {
-  const { container, rerender } = render(<OrderTags {...props} />);
-  const typedIn = field(container);
+it("BE-4 Remove tag : 1. a failed removal is shown on the row, not on the add field", () => {
+  const removeError = "The tag could not be removed. Try again.";
+  const { container, rerender } = render(
+    <OrderTags {...props} removeError={removeError} />,
+  );
 
-  fireEvent.click(removeButtons(container)[0]);
-  rerender(<OrderTags {...props} result={{ ok: true }} />);
+  const message = () => container.querySelector('s-text[tone="critical"]');
+  expect(message()?.textContent).toBe(removeError);
+  expect(field(container).hasAttribute("error")).toBe(false);
 
-  expect(field(container)).toBe(typedIn);
+  rerender(<OrderTags {...props} removeError={removeError} saving />);
+  expect(message()).toBeNull();
 });

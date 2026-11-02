@@ -7,6 +7,7 @@ import invalidToken from "../fixtures/admin-invalid-token.json";
 import tagsAddInvalid from "../fixtures/tags-add-invalid.json";
 import tagsAddMissingOrder from "../fixtures/tags-add-missing-order.json";
 import tagsAdded from "../fixtures/tags-add.json";
+import tagsRemoveOtherCase from "../fixtures/tags-remove-other-case.json";
 import tagsRemoveMissingOrder from "../fixtures/tags-remove-missing-order.json";
 import tagsRemoved from "../fixtures/tags-remove.json";
 import { fixtureOrder, fixtures } from "../helpers/order-fixtures";
@@ -449,4 +450,49 @@ it("BE-4 Remove tag : 1. an orders/updated after the removal does not bring the 
   const stored = await storedOrder();
   expect(JSON.parse(stored.tags)).toEqual(["wholesale"]);
   expect(stored.shopifyUpdatedAt).toEqual(new Date(REMOVED.updatedAt));
+});
+
+it("BE-4 Remove tag : 1. returns an error when tagsRemove leaves the tag, as with another case in Shopify", async () => {
+  // The case was changed in Shopify, and the webhook has not arrived. tagsRemove finds
+  // nothing to remove, and does not say so.
+  await createOrder({ tags: ["SPIKE-vip"] });
+  const { tags, updatedAt } = tagsRemoveOtherCase.data.tagsRemove.node;
+  mockStore(tagsRemoveOtherCase, orderResponse(tags, updatedAt));
+
+  const result = await removeTag("SPIKE-vip");
+
+  expect(result).toEqual({
+    error: "This tag has changed in Shopify. Try again.",
+  });
+  // The stored copy now has the tag as Shopify has it, so trying again removes it.
+  expect(JSON.parse((await storedOrder()).tags)).toContain("spike-VIP");
+});
+
+it("BE-4 Remove tag : 1. returns an error when the stored order cannot be read", async () => {
+  await createOrder();
+  await db.order.update({
+    where: { id: ORDER_ID },
+    data: { tags: "not JSON" },
+  });
+  const requests = mockStore(tagsRemoved, orderAfterRemove);
+  const logged = vi.spyOn(console, "error").mockImplementation(() => {});
+
+  const result = await removeTag("VIP");
+
+  expect(result).toEqual({ error: "The tag could not be removed. Try again." });
+  expect(logged).toHaveBeenCalledOnce();
+  expect(requests).toHaveLength(0);
+  logged.mockRestore();
+});
+
+it("BE-4 Remove tag : 1. reports success when only the refetch after tagsRemove fails", async () => {
+  await createOrder({ tags: ["VIP", "wholesale"] });
+  mockStore(tagsRemoved, THROTTLED);
+  const logged = vi.spyOn(console, "error").mockImplementation(() => {});
+
+  const result = await removeTag("VIP");
+
+  expect(result).toEqual({ ok: true });
+  expect(logged).toHaveBeenCalledOnce();
+  logged.mockRestore();
 });

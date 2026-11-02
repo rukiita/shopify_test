@@ -247,9 +247,9 @@ it("BE-4 Remove tag : 1. the tag stays and an error is shown when the removal fa
   fireEvent.click(container.querySelector('s-button[icon="x"]')!);
 
   await waitFor(() => {
-    expect(container.querySelector("s-text-field")?.getAttribute("error")).toBe(
-      error,
-    );
+    expect(
+      container.querySelector('s-text[tone="critical"]')?.textContent,
+    ).toBe(error);
   });
   expect(sent).toEqual([
     { intent: "remove", orderId: "gid://shopify/Order/1", tag: "VIP" },
@@ -275,4 +275,45 @@ it("BE-4 Remove tag : 1. the order list stops showing a tag once it is removed",
       [...container.querySelectorAll("s-chip")].map((chip) => chip.textContent),
     ).toEqual(["wholesale"]);
   });
+});
+
+it("BE-4 Remove tag : 1. removing a tag keeps what was typed in the field", async () => {
+  let tags = ["VIP", "wholesale"];
+  const { container } = renderOrders({
+    ordersLoader: () => page([{ ...row(1), tags }]),
+    tagsAction: () => {
+      tags = ["wholesale"];
+      return { ok: true };
+    },
+  });
+  await table(container);
+  const typedIn = container.querySelector("s-text-field");
+
+  fireEvent.click(container.querySelector('s-button[icon="x"]')!);
+
+  await waitFor(() => {
+    expect(container.querySelectorAll("s-chip")).toHaveLength(1);
+  });
+  expect(container.querySelector("s-text-field")).toBe(typedIn);
+});
+
+it("BE-4 Remove tag : 1. the next attempt on the row clears a failed removal's error", async () => {
+  const error = "The tag could not be removed. Try again.";
+  const { container } = renderOrders({
+    ordersLoader: () => page([{ ...row(1), tags: ["VIP"] }]),
+    tagsAction: async ({ request }) =>
+      (await request.formData()).get("intent") === "remove"
+        ? { error }
+        : { ok: true },
+  });
+  await table(container);
+  const message = () => container.querySelector('s-text[tone="critical"]');
+
+  fireEvent.click(container.querySelector('s-button[icon="x"]')!);
+  await waitFor(() => expect(message()?.textContent).toBe(error));
+
+  Object.assign(container.querySelector("s-text-field")!, { value: "new" });
+  fireEvent.submit(container.querySelector("form")!);
+
+  await waitFor(() => expect(message()).toBeNull());
 });
