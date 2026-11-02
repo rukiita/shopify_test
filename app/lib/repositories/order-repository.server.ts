@@ -108,7 +108,10 @@ export async function listOrders(
 
   const orders = await db.order.findMany({
     where: { shop },
-    orderBy: { shopifyCreatedAt: "desc" },
+    // By ID too, because the created time is not unique. Orders created in the same
+    // second get a defined order, and Prisma pages in SQL: with an orderBy that is not
+    // unique it reads every order up to the cursor and pages in memory.
+    orderBy: [{ shopifyCreatedAt: "desc" }, { id: "desc" }],
     // One more than the page, to tell whether there is another page in that
     // direction. A negative take reads backwards and keeps the order.
     take: backwards ? -(pageSize + 1) : pageSize + 1,
