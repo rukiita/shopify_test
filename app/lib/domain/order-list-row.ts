@@ -42,9 +42,31 @@ export function toOrderListRow(order: StoredOrderListRow): OrderListRow {
 }
 
 export function formatOrderDate(createdAt: string, timeZone: string) {
-  return new Intl.DateTimeFormat("en", {
-    dateStyle: "medium",
-    timeStyle: "short",
-    timeZone,
-  }).format(new Date(createdAt));
+  return orderDateFormat(timeZone).format(new Date(createdAt));
+}
+
+// Kept per time zone: a page formats every row, on each render.
+const orderDateFormats = new Map<string, Intl.DateTimeFormat>();
+
+function orderDateFormat(timeZone: string) {
+  let format = orderDateFormats.get(timeZone);
+  if (!format) {
+    format = createOrderDateFormat(timeZone);
+    orderDateFormats.set(timeZone, format);
+  }
+  return format;
+}
+
+function createOrderDateFormat(timeZone: string) {
+  const options = { dateStyle: "medium", timeStyle: "short" } as const;
+  try {
+    return new Intl.DateTimeFormat("en", { ...options, timeZone });
+  } catch (error) {
+    // The browser reports its own zone, and may not know it ("Etc/Unknown"). One bad
+    // value should not take down the whole list.
+    if (error instanceof RangeError) {
+      return new Intl.DateTimeFormat("en", { ...options, timeZone: "UTC" });
+    }
+    throw error;
+  }
 }
