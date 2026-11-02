@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { cleanup, render, waitFor } from "@testing-library/react";
+import { cleanup, fireEvent, render, waitFor } from "@testing-library/react";
 import { createRoutesStub, Outlet } from "react-router";
 import { afterEach, expect, it } from "vitest";
 import type { OrderListRow } from "../../app/lib/domain/order-list-row";
@@ -35,10 +35,12 @@ const page = (orders: OrderListRow[]) => ({
 function renderOrders({
   appLoader = () => null,
   ordersLoader,
+  tagsAction = () => null,
   url = "/",
 }: {
   appLoader?: () => unknown;
   ordersLoader: (args: { request: Request }) => unknown;
+  tagsAction?: (args: { request: Request }) => unknown;
   url?: string;
 }) {
   const Stub = createRoutesStub([
@@ -66,6 +68,7 @@ function renderOrders({
         },
       ],
     },
+    { path: "/app/tags", action: tagsAction as never },
   ]);
   return render(<Stub initialEntries={[url]} />);
 }
@@ -182,4 +185,47 @@ it("BE-2 Order list : 1. the empty state has the Sync button, and it is on the p
   const listed = renderOrders({ ordersLoader: () => page([row(1)]) });
   await table(listed.container);
   expect(buttons(listed.container)).toEqual(["Sync orders"]);
+});
+
+it("BE-3 Add tag : 1. the order list sends the tag to the tag action, and shows the order's new tags", async () => {
+  const sent: Record<string, FormDataEntryValue>[] = [];
+  let tags: string[] = [];
+  const { container } = renderOrders({
+    ordersLoader: () => page([{ ...row(1), tags }]),
+    tagsAction: async ({ request }) => {
+      sent.push(Object.fromEntries(await request.formData()));
+      tags = ["VIP"];
+      return { ok: true };
+    },
+  });
+  await table(container);
+
+  Object.assign(container.querySelector("s-text-field")!, { value: "VIP" });
+  fireEvent.submit(container.querySelector("form")!);
+
+  await waitFor(() => {
+    expect(container.querySelector("s-chip")?.textContent).toBe("VIP");
+  });
+  expect(sent).toEqual([
+    { intent: "add", orderId: "gid://shopify/Order/1", tag: "VIP" },
+  ]);
+});
+
+it("BE-3 Add tag : 1. the order list shows the reason only on the order it is about", async () => {
+  const error = "This order already has that tag";
+  const { container } = renderOrders({
+    ordersLoader: () => page([row(2), row(1)]),
+    tagsAction: () => ({ error }),
+  });
+  await table(container);
+  const fields = () => [...container.querySelectorAll("s-text-field")];
+  expect(fields()).toHaveLength(2);
+
+  Object.assign(fields()[1], { value: "VIP" });
+  fireEvent.submit(container.querySelectorAll("form")[1]);
+
+  await waitFor(() => {
+    expect(fields()[1].getAttribute("error")).toBe(error);
+  });
+  expect(fields()[0].hasAttribute("error")).toBe(false);
 });
