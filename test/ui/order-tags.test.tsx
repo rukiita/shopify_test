@@ -72,9 +72,10 @@ it("BE-3 Add tag : 1. the reason is shown when a tag is rejected", () => {
 });
 
 it("BE-3 Add tag : 1. the field is cleared after a tag is added", () => {
-  const { container, rerender } = render(<OrderTags {...props} saving />);
+  const { container, rerender } = render(<OrderTags {...props} />);
   submit(container, "wholesale");
   const typedIn = field(container);
+  rerender(<OrderTags {...props} saving />);
 
   rerender(<OrderTags {...props} result={{ error: "Rejected" }} />);
   // A rejected tag stays, so that it can be corrected.

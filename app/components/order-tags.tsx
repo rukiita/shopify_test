@@ -8,25 +8,29 @@ interface OrderTagsProps {
   // How the last attempt ended, once one has finished.
   result?: TagResult;
   onAdd: (tag: string) => void;
+  onRemove: (tag: string) => void;
 }
 
-// One order's tags in the order list (#3). Presentational: the page owns the request.
+// One order's tags in the order list (#3, #4). Presentational: the page owns the request.
 export function OrderTags({
   orderName,
   tags,
   saving,
   result,
   onAdd,
+  onRemove,
 }: OrderTagsProps) {
   const field = useRef<HTMLElementTagNameMap["s-text-field"]>(null);
 
   // Cleared by replacing the element: Polaris can drop a property set from an effect
   // on a hydrated element (#2).
   const [fieldKey, setFieldKey] = useState(0);
+  // The result is of the last add or remove, and only an add clears the field.
+  const [adding, setAdding] = useState(false);
   const [lastResult, setLastResult] = useState(result);
   if (result !== lastResult) {
     setLastResult(result);
-    if (result && "ok" in result) {
+    if (adding && result && "ok" in result) {
       setFieldKey(fieldKey + 1);
     }
   }
@@ -36,6 +40,7 @@ export function OrderTags({
   const submit = (event: FormEvent) => {
     event.preventDefault();
     if (!saving) {
+      setAdding(true);
       onAdd(field.current!.value);
     }
   };
@@ -45,7 +50,24 @@ export function OrderTags({
       {tags.length > 0 && (
         <s-stack direction="inline" gap="small-200">
           {tags.map((tag) => (
-            <s-chip key={tag}>{tag}</s-chip>
+            <s-stack
+              key={tag}
+              direction="inline"
+              gap="small-500"
+              alignItems="center"
+            >
+              <s-chip>{tag}</s-chip>
+              <s-button
+                variant="tertiary"
+                icon="x"
+                accessibilityLabel={`Remove tag ${tag}`}
+                onClick={() => {
+                  setAdding(false);
+                  onRemove(tag);
+                }}
+                {...(saving ? { disabled: true } : {})}
+              />
+            </s-stack>
           ))}
         </s-stack>
       )}

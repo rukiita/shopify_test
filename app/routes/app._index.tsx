@@ -44,6 +44,11 @@ const serverTimeZone = () => "UTC";
 // One fetcher per order, so that saving and the result stay on that order's row.
 function OrderTagsCell({ order }: { order: OrderListRow }) {
   const fetcher = useFetcher<typeof tagsAction>();
+  const submit = (intent: "add" | "remove", tag: string) =>
+    fetcher.submit(
+      { intent, orderId: order.id, tag },
+      { method: "POST", action: "/app/tags" },
+    );
 
   return (
     <OrderTags
@@ -51,12 +56,8 @@ function OrderTagsCell({ order }: { order: OrderListRow }) {
       tags={order.tags}
       saving={fetcher.state !== "idle"}
       result={fetcher.data}
-      onAdd={(tag) =>
-        fetcher.submit(
-          { intent: "add", orderId: order.id, tag },
-          { method: "POST", action: "/app/tags" },
-        )
-      }
+      onAdd={(tag) => submit("add", tag)}
+      onRemove={(tag) => submit("remove", tag)}
     />
   );
 }
