@@ -74,9 +74,7 @@ it("BE-5 CSV export : 1. escapes values containing commas, quotes and line break
       customerAddress: "123 Test Street, San Francisco",
       customerEmail: null,
       tags: "[]",
-      lineItems: [
-        lineItem({ product: { title: "Line\nbreak", tags: "[]" } }),
-      ],
+      lineItems: [lineItem({ product: { title: "Line\nbreak", tags: "[]" } })],
     }),
   );
 
@@ -183,9 +181,9 @@ it.each([
 ])(
   "BE-5 CSV export : 4. outputs Total price as a plain decimal (%s %s)",
   (totalPriceMinor, currencyCode, expected) => {
-    expect(
-      cell(order({ totalPriceMinor, currencyCode }), "Total price"),
-    ).toBe(expected);
+    expect(cell(order({ totalPriceMinor, currencyCode }), "Total price")).toBe(
+      expected,
+    );
   },
 );
 
@@ -194,9 +192,9 @@ it("BE-5 CSV export : 5. outputs Payment gateway", () => {
 });
 
 it("BE-5 CSV export : 5. joins multiple payment gateways with the separator", () => {
-  expect(
-    firstRow(order({ paymentGateways: '["bogus","manual"]' })),
-  ).toContain(',"bogus, manual",');
+  expect(firstRow(order({ paymentGateways: '["bogus","manual"]' }))).toContain(
+    ',"bogus, manual",',
+  );
 });
 
 it("BE-5 CSV export : 6. outputs Customer email, empty when there is none", () => {

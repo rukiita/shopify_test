@@ -46,7 +46,9 @@ const BOM = "\uFEFF";
 
 export function buildOrdersCsv(orders: StoredExportOrder[]) {
   const rows = [HEADER, ...orders.flatMap(toRows)];
-  return BOM + rows.map((row) => `${row.map(escapeCell).join(",")}\r\n`).join("");
+  return (
+    BOM + rows.map((row) => `${row.map(escapeCell).join(",")}\r\n`).join("")
+  );
 }
 
 // One row per line item, repeating the order's columns. An order without line items
@@ -76,7 +78,8 @@ function toRows(order: StoredExportOrder) {
 }
 
 // A JSON array of strings, as stored, in one cell.
-const joinList = (stored: string) => (JSON.parse(stored) as string[]).join(", ");
+const joinList = (stored: string) =>
+  (JSON.parse(stored) as string[]).join(", ");
 
 // Free text can start with something a spreadsheet would run as a formula, and quoting
 // does not stop it, so the cell gets a leading apostrophe. Numeric and generated

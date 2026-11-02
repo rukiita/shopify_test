@@ -55,7 +55,11 @@ it("BE-5 CSV export : 1. the loader rejects a request without a valid session to
   await saveOrder(mapOrder(SHOP, fixtureOrder(fixtures.regular)));
 
   const thrown = await load(
-    adminRequest("/app/export", sessionToken(SHOP, "not-the-app-secret"), "GET"),
+    adminRequest(
+      "/app/export",
+      sessionToken(SHOP, "not-the-app-secret"),
+      "GET",
+    ),
   ).catch((failure: unknown) => failure);
 
   expect((thrown as Response).status).toBe(401);

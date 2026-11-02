@@ -352,7 +352,9 @@ function spyOnSaving() {
 }
 
 it("BE-5 CSV export : 1. the order list saves the file from the export route", async () => {
-  const fetched = vi.fn(async (_url: string) => new Response("the csv"));
+  const fetched = vi.fn<(url: string) => Promise<Response>>(
+    async () => new Response("the csv"),
+  );
   vi.stubGlobal("fetch", fetched);
   const { container } = renderOrders({ ordersLoader: () => page([row(1)]) });
   const button = await exportButton(container);
