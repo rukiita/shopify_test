@@ -89,6 +89,34 @@ export async function findStoredUpdatedAt(shop: string, orderIds: string[]) {
   return new Map(stored.map((order) => [order.id, order.shopifyUpdatedAt]));
 }
 
+// The stored tags of an order of a shop, or null when the shop has no such order.
+export async function findOrderTags(
+  shop: string,
+  orderId: string,
+): Promise<string[] | null> {
+  const order = await db.order.findFirst({
+    where: { id: orderId, shop },
+    select: { tags: true },
+  });
+  return order && JSON.parse(order.tags);
+}
+
+// Writes the tags and updatedAt that a tag mutation returned. With the newer updatedAt
+// stored, a fetch from before the mutation cannot overwrite the tags when it finishes
+// late. Nothing is written when the stored copy is newer, or the order is gone (the
+// app was uninstalled meanwhile).
+export async function updateOrderTags(
+  shop: string,
+  orderId: string,
+  tags: string[],
+  shopifyUpdatedAt: Date,
+) {
+  await db.order.updateMany({
+    where: { id: orderId, shop, shopifyUpdatedAt: { lte: shopifyUpdatedAt } },
+    data: { tags: JSON.stringify(tags), shopifyUpdatedAt },
+  });
+}
+
 const ORDER_LIST_PAGE_SIZE = 50;
 
 interface ListOrdersOptions {
