@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { cleanup, fireEvent, render, waitFor } from "@testing-library/react";
 import { createRoutesStub, Outlet } from "react-router";
-import { afterEach, expect, it } from "vitest";
+import { afterEach, expect, it, vi } from "vitest";
 import type { OrderListRow } from "../../app/lib/domain/order-list-row";
 import {
   ErrorBoundary as AppErrorBoundary,
@@ -11,7 +11,11 @@ import Orders, {
   ErrorBoundary as OrdersErrorBoundary,
 } from "../../app/routes/app._index";
 
-afterEach(cleanup);
+afterEach(() => {
+  cleanup();
+  vi.unstubAllGlobals();
+  vi.restoreAllMocks();
+});
 
 const row = (number: number): OrderListRow => ({
   id: `gid://shopify/Order/${number}`,
@@ -316,4 +320,133 @@ it("BE-4 Remove tag : 1. the next attempt on the row clears a failed removal's e
   fireEvent.submit(container.querySelector("form")!);
 
   await waitFor(() => expect(message()).toBeNull());
+});
+
+const exportButton = async (container: HTMLElement) => {
+  await table(container);
+  return [...container.querySelectorAll("s-button")].find(
+    (button) => button.textContent === "Export CSV",
+  )!;
+};
+
+// jsdom has no object URLs and does not follow a link's download.
+function spyOnSaving() {
+  const blobs: Blob[] = [];
+  Object.assign(URL, {
+    createObjectURL: (blob: Blob) => {
+      blobs.push(blob);
+      return "blob:orders";
+    },
+    revokeObjectURL: () => {},
+  });
+  const saved: { href: string; download: string }[] = [];
+  vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(function (
+    this: HTMLAnchorElement,
+  ) {
+    saved.push({
+      href: this.getAttribute("href")!,
+      download: this.download,
+    });
+  });
+  return { blobs, saved };
+}
+
+const csvResponse = () =>
+  new Response("the csv", {
+    headers: { "Content-Type": "text/csv; charset=utf-8" },
+  });
+
+const exportError = (container: HTMLElement) =>
+  container.querySelector('s-text[tone="critical"]')?.textContent;
+
+it("BE-5 CSV export : 1. the order list saves the file from the export route", async () => {
+  const fetched = vi.fn<(url: string) => Promise<Response>>(async () =>
+    csvResponse(),
+  );
+  vi.stubGlobal("fetch", fetched);
+  const { container } = renderOrders({ ordersLoader: () => page([row(1)]) });
+  const button = await exportButton(container);
+  const { blobs, saved } = spyOnSaving();
+
+  fireEvent.click(button);
+
+  await waitFor(() => expect(saved).toHaveLength(1));
+  expect(fetched.mock.calls.map(([url]) => url)).toEqual(["/app/export"]);
+  expect(saved).toEqual([{ href: "blob:orders", download: "orders.csv" }]);
+  expect(await blobs[0].text()).toBe("the csv");
+});
+
+it("BE-5 CSV export : 1. the order list disables the export button until the export finishes", async () => {
+  let finish: (response: Response) => void = () => {};
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(
+      () =>
+        new Promise<Response>((resolve) => {
+          finish = resolve;
+        }),
+    ),
+  );
+  const { container } = renderOrders({ ordersLoader: () => page([row(1)]) });
+  const button = await exportButton(container);
+  const { saved } = spyOnSaving();
+
+  fireEvent.click(button);
+
+  await waitFor(() => expect(button.hasAttribute("disabled")).toBe(true));
+  finish(csvResponse());
+  await waitFor(() => expect(button.hasAttribute("disabled")).toBe(false));
+  expect(saved).toHaveLength(1);
+});
+
+it.each([
+  ["fails", () => new Response("", { status: 500 })],
+  [
+    "returns something other than a CSV",
+    () =>
+      new Response("<script></script>", {
+        headers: { "Content-Type": "text/html;charset=utf-8" },
+      }),
+  ],
+])(
+  "BE-5 CSV export : 1. the order list logs an error, shows it and saves nothing when the export %s",
+  async (_case, response) => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => response()),
+    );
+    const logged = vi.spyOn(console, "error").mockImplementation(() => {});
+    const { container } = renderOrders({ ordersLoader: () => page([row(1)]) });
+    const button = await exportButton(container);
+    const { saved } = spyOnSaving();
+
+    fireEvent.click(button);
+
+    await waitFor(() => {
+      expect(exportError(container)).toBe(
+        "The orders could not be exported. Try again.",
+      );
+    });
+    expect(saved).toEqual([]);
+    expect(logged).toHaveBeenCalledWith(expect.any(Error));
+  },
+);
+
+it("BE-5 CSV export : 1. the order list shows an error when the export request does not complete", async () => {
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async () => {
+      throw new TypeError("Failed to fetch");
+    }),
+  );
+  vi.spyOn(console, "error").mockImplementation(() => {});
+  const { container } = renderOrders({ ordersLoader: () => page([row(1)]) });
+
+  fireEvent.click(await exportButton(container));
+
+  await waitFor(() => {
+    expect(exportError(container)).toBe(
+      "The orders could not be exported. Try again.",
+    );
+  });
 });
