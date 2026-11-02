@@ -91,3 +91,64 @@ it("BE-2 Order list : 1. a column with no value shows a dash", () => {
     "—",
   ]);
 });
+
+it("BE-2 Order list : 1. nextpage and previouspage events call the handlers, and page availability is set on the table", () => {
+  const calls: string[] = [];
+  const pagination = {
+    onNextPage: () => calls.push("next"),
+    onPreviousPage: () => calls.push("previous"),
+  };
+  const { container, rerender } = render(
+    <OrderTable
+      {...props}
+      {...pagination}
+      orders={[order]}
+      hasNextPage
+      hasPreviousPage={false}
+    />,
+  );
+  // Properties: React 18 would write hasNextPage={false} as the attribute "false".
+  const table = () =>
+    container.querySelector("s-table") as unknown as HTMLElement & {
+      paginate: boolean;
+      hasNextPage: boolean;
+      hasPreviousPage: boolean;
+      loading: boolean;
+    };
+  expect(table().paginate).toBe(true);
+  expect(table().hasNextPage).toBe(true);
+  expect(table().hasPreviousPage).toBe(false);
+  expect(table().loading).toBe(false);
+
+  // Polaris dispatches these on the element itself; they do not bubble.
+  table().dispatchEvent(new Event("nextpage"));
+  table().dispatchEvent(new Event("previouspage"));
+  expect(calls).toEqual(["next", "previous"]);
+
+  rerender(
+    <OrderTable
+      {...props}
+      {...pagination}
+      orders={[order]}
+      hasNextPage={false}
+      hasPreviousPage
+      loading
+    />,
+  );
+  expect(table().hasNextPage).toBe(false);
+  expect(table().hasPreviousPage).toBe(true);
+  expect(table().loading).toBe(true);
+
+  // One handler per event after a rerender, not one per render.
+  table().dispatchEvent(new Event("nextpage"));
+  expect(calls).toEqual(["next", "previous", "next"]);
+});
+
+it("BE-2 Order list : 1. a single page of orders has no pagination controls", () => {
+  const { container } = render(<OrderTable {...props} orders={[order]} />);
+
+  const table = container.querySelector("s-table") as unknown as {
+    paginate: boolean;
+  };
+  expect(table.paginate).toBe(false);
+});
