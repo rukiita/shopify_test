@@ -67,6 +67,24 @@ it("BE-5 CSV export : 1. starts with a UTF-8 BOM and ends rows with CRLF", () =>
   expect(csv.replaceAll("\r\n", "")).not.toMatch(/[\r\n]/);
 });
 
+it("BE-5 CSV export : 1. escapes values containing commas, quotes and line breaks", () => {
+  const row = firstRow(
+    order({
+      customerFullName: 'Test "Ace" Buyer',
+      customerAddress: "123 Test Street, San Francisco",
+      customerEmail: null,
+      tags: "[]",
+      lineItems: [
+        lineItem({ product: { title: "Line\nbreak", tags: "[]" } }),
+      ],
+    }),
+  );
+
+  expect(row).toBe(
+    '6663058751643,1006,11.99,bogus,,"Test ""Ace"" Buyer","123 Test Street, San Francisco",,2026-11-02T13:05:00Z,"Line\nbreak",',
+  );
+});
+
 it("BE-5 CSV export : 1. writes one row per line item and repeats the order columns", () => {
   const rows = lines(
     buildOrdersCsv([
