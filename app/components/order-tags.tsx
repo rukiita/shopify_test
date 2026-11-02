@@ -1,15 +1,26 @@
 import { useRef, type FormEvent } from "react";
+import type { TagResult } from "../lib/tag-order.server";
 
 interface OrderTagsProps {
   orderName: string;
   tags: string[];
   saving: boolean;
+  // How the last attempt ended, once one has finished.
+  result?: TagResult;
   onAdd: (tag: string) => void;
 }
 
 // One order's tags in the order list (#3). Presentational: the page owns the request.
-export function OrderTags({ orderName, tags, saving, onAdd }: OrderTagsProps) {
+export function OrderTags({
+  orderName,
+  tags,
+  saving,
+  result,
+  onAdd,
+}: OrderTagsProps) {
   const field = useRef<HTMLElementTagNameMap["s-text-field"]>(null);
+
+  const error = !saving && result && "error" in result ? result.error : null;
 
   const submit = (event: FormEvent) => {
     event.preventDefault();
@@ -34,6 +45,7 @@ export function OrderTags({ orderName, tags, saving, onAdd }: OrderTagsProps) {
             label={`Add a tag to ${orderName}`}
             labelAccessibilityVisibility="exclusive"
             name="tag"
+            {...(error ? { error } : {})}
           />
           {/* React 18 writes `disabled={false}` as the attribute disabled="false",
               which still disables the button, so the attributes are only added
