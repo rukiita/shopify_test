@@ -5,6 +5,7 @@ import { action } from "../../app/routes/app.tags";
 import tagsAddInvalid from "../fixtures/tags-add-invalid.json";
 import tagsAddMissingOrder from "../fixtures/tags-add-missing-order.json";
 import tagsAdded from "../fixtures/tags-add.json";
+import tagsRemoveMissingOrder from "../fixtures/tags-remove-missing-order.json";
 import tagsRemoved from "../fixtures/tags-remove.json";
 import { mockAdminGraphql, resetAdminGraphql } from "../helpers/admin-graphql";
 import { resetDatabase } from "../helpers/database";
@@ -243,4 +244,73 @@ it("BE-4 Remove tag : 1. calls tagsRemove and updates the stored tags", async ()
   expect(requests[0].query).toContain("tagsRemove(");
   expect(requests[0].variables).toEqual({ id: ORDER_ID, tags: ["VIP"] });
   expect(JSON.parse((await storedOrder()).tags)).toEqual(["wholesale"]);
+});
+
+it("BE-4 Remove tag : 1. returns an error and keeps the tag on userErrors", async () => {
+  await createOrder({ tags: ["VIP", "wholesale"] });
+  mockAdminGraphql(SHOP, tagsRemoveMissingOrder);
+
+  const result = await removeTag("VIP");
+
+  expect(result).toEqual({ error: "Order does not exist" });
+  const stored = await storedOrder();
+  expect(JSON.parse(stored.tags)).toEqual(["VIP", "wholesale"]);
+  expect(stored.shopifyUpdatedAt).toEqual(STORED_UPDATED_AT);
+});
+
+it("BE-4 Remove tag : 1. returns an error and keeps the tag when the request fails", async () => {
+  await createOrder({ tags: ["VIP", "wholesale"] });
+  // The documented rate limit error, as in the add test above. Not captured.
+  mockAdminGraphql(SHOP, {
+    errors: [{ message: "Throttled", extensions: { code: "THROTTLED" } }],
+  });
+  const logged = vi.spyOn(console, "error").mockImplementation(() => {});
+
+  const result = await removeTag("VIP");
+
+  expect(result).toEqual({ error: "The tag could not be removed. Try again." });
+  expect(logged).toHaveBeenCalledOnce();
+  expect(JSON.parse((await storedOrder()).tags)).toEqual(["VIP", "wholesale"]);
+  logged.mockRestore();
+});
+
+it("BE-4 Remove tag : 1. a request whose access token Shopify rejects throws the 401 that makes App Bridge retry", async () => {
+  await createOrder({ tags: ["VIP"] });
+  mockAdminGraphql(
+    SHOP,
+    () =>
+      new Response(
+        JSON.stringify({ errors: "Invalid API key or access token" }),
+        { status: 401, headers: { "Content-Type": "application/json" } },
+      ),
+  );
+
+  const thrown = await removeTag("VIP").catch((error: unknown) => error);
+
+  expect(thrown).toBeInstanceOf(Response);
+  expect((thrown as Response).status).toBe(401);
+});
+
+it("BE-4 Remove tag : 1. rejects removing a tag that does not exist", async () => {
+  await createOrder({ tags: ["VIP"] });
+  const requests = mockAdminGraphql(SHOP, tagsRemoved);
+  const error = "This order does not have that tag";
+
+  expect(await removeTag("wholesale")).toEqual({ error });
+  // tagsRemove matches case-sensitively, so it would do nothing for this one.
+  expect(await removeTag("vip")).toEqual({ error });
+
+  expect(requests).toHaveLength(0);
+  expect(JSON.parse((await storedOrder()).tags)).toEqual(["VIP"]);
+});
+
+it("BE-4 Remove tag : 1. rejects an order of another shop without calling Shopify", async () => {
+  await createOrder({ shop: "other-shop.myshopify.com", tags: ["VIP"] });
+  const requests = mockAdminGraphql(SHOP, tagsRemoved);
+
+  const result = await removeTag("VIP");
+
+  expect(result).toEqual({ error: "This order could not be found" });
+  expect(requests).toHaveLength(0);
+  expect(JSON.parse((await storedOrder()).tags)).toEqual(["VIP"]);
 });
