@@ -103,8 +103,19 @@ export async function listOrders(
   shop: string,
   { after, before, pageSize = ORDER_LIST_PAGE_SIZE }: ListOrdersOptions = {},
 ) {
-  const cursor = after ?? before;
-  const backwards = !after && Boolean(before);
+  // The cursor comes from the URL. Prisma would compare the shop's orders with any
+  // order it names, and return nothing for one that is gone, so anything but one of
+  // the shop's own orders gives the first page.
+  const requested = after ?? before;
+  const cursor = requested
+    ? (
+        await db.order.findFirst({
+          where: { id: requested, shop },
+          select: { id: true },
+        })
+      )?.id
+    : undefined;
+  const backwards = Boolean(cursor) && !after;
 
   const orders = await db.order.findMany({
     where: { shop },
