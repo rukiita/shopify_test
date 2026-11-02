@@ -27,3 +27,9 @@ it("BE-3 Add tag : 1. rejects a tag over the maximum length", () => {
   expect(normalizeTag("😀".repeat(55), [])).toEqual({ tag: "😀".repeat(55) });
   expect(normalizeTag("😀".repeat(56), [])).toEqual({ error });
 });
+
+it("BE-3 Add tag : 1. rejects a tag containing a comma", () => {
+  expect(normalizeTag("VIP, wholesale", [])).toEqual({
+    error: "A tag can't contain a comma",
+  });
+});
