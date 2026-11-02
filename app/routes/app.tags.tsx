@@ -1,5 +1,5 @@
 import type { ActionFunctionArgs } from "react-router";
-import { addOrderTag } from "../lib/tag-order.server";
+import { addOrderTag, TAG_NOT_SAVED } from "../lib/tag-order.server";
 import { authenticate } from "../shopify.server";
 
 // Tag edits from the order list (ADR-0004). POST only; there is no page here.
@@ -14,7 +14,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     typeof orderId !== "string" ||
     typeof tag !== "string"
   ) {
-    return { error: "The tag could not be saved" };
+    return TAG_NOT_SAVED;
   }
 
   return addOrderTag(admin, session.shop, orderId, tag);
