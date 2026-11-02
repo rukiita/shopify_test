@@ -88,11 +88,25 @@ export async function findStoredUpdatedAt(shop: string, orderIds: string[]) {
   return new Map(stored.map((order) => [order.id, order.shopifyUpdatedAt]));
 }
 
+const ORDER_LIST_PAGE_SIZE = 50;
+
+interface ListOrdersOptions {
+  after?: string;
+  pageSize?: number;
+}
+
 // One page of a shop's orders, newest first, with the columns the order list shows.
-export async function listOrders(shop: string) {
+// `after` is the ID of the order the page starts after.
+export async function listOrders(
+  shop: string,
+  { after, pageSize = ORDER_LIST_PAGE_SIZE }: ListOrdersOptions = {},
+) {
   const orders = await db.order.findMany({
     where: { shop },
     orderBy: { shopifyCreatedAt: "desc" },
+    // One more than the page, to tell whether there is a next page.
+    take: pageSize + 1,
+    ...(after ? { cursor: { id: after }, skip: 1 } : {}),
     select: {
       id: true,
       name: true,
@@ -105,7 +119,11 @@ export async function listOrders(shop: string) {
       tags: true,
     },
   });
-  return { orders, hasNextPage: false, hasPreviousPage: false };
+  return {
+    orders: orders.slice(0, pageSize),
+    hasNextPage: orders.length > pageSize,
+    hasPreviousPage: Boolean(after),
+  };
 }
 
 // Removes the customer's email, name and address from the given orders of a shop
