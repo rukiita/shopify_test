@@ -113,3 +113,24 @@ it("BE-2 Order list : 1. changing page does not run the app route's loader again
   expect(appLoads).toBe(1);
   expect(container.querySelector("nav")?.textContent).toBe("Nav");
 });
+
+it("BE-2 Order list : 1. Try again loads the page again without reloading the iframe", async () => {
+  let failing = true;
+  const { container } = renderOrders({
+    ordersLoader: () => {
+      if (failing) throw new TypeError("Failed to fetch");
+      return page([row(1)]);
+    },
+  });
+  const button = await waitFor(() => {
+    const element = container.querySelector("s-banner s-button");
+    if (!element) throw new Error("The banner is not rendered yet");
+    return element as HTMLElement;
+  });
+
+  failing = false;
+  button.click();
+
+  await table(container);
+  expect(container.querySelector("s-banner")).toBeNull();
+});

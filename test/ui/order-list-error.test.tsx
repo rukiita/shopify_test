@@ -57,3 +57,11 @@ it("BE-2 Order list : 1. the banner's button tries again", () => {
 
   expect(retries).toBe(1);
 });
+
+it("BE-2 Order list : 1. the banner's button shows that it is trying again", () => {
+  const { container } = render(<OrderListError retrying onRetry={() => {}} />);
+
+  const button = container.querySelector("s-banner s-button");
+  expect(button?.hasAttribute("disabled")).toBe(true);
+  expect(button?.hasAttribute("loading")).toBe(true);
+});
