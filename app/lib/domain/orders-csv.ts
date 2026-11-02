@@ -82,11 +82,13 @@ const joinList = (stored: string) =>
   (JSON.parse(stored) as string[]).join(", ");
 
 // Free text can start with something a spreadsheet would run as a formula, and quoting
-// does not stop it, so the cell gets a leading apostrophe. Numeric and generated
-// columns do not go through this, so that a negative total stays a number.
+// does not stop it, so the cell gets a leading apostrophe. The characters are the ones
+// the OWASP page on CSV injection lists, including the full-width ＝＋－＠. Numeric and
+// generated columns do not go through this, so that a negative total stays a number.
 const textCell = (value: string) =>
-  /^[=+\-@\t\r]/.test(value) ? `'${value}` : value;
+  /^[=+\-@\t\r\n\uFF1D\uFF0B\uFF0D\uFF20]/.test(value) ? `'${value}` : value;
 
-// RFC 4180.
+// RFC 4180. A semicolon is quoted too: it is the separator in Excel in some locales,
+// where the rest of the value would become a cell of its own and could run as a formula.
 const escapeCell = (value: string) =>
-  /[",\r\n]/.test(value) ? `"${value.replaceAll('"', '""')}"` : value;
+  /[",;\r\n]/.test(value) ? `"${value.replaceAll('"', '""')}"` : value;
