@@ -44,3 +44,24 @@ it("BE-2 Order list : 1. returns orders newest first", async () => {
   expect(page.hasNextPage).toBe(false);
   expect(page.hasPreviousPage).toBe(false);
 });
+
+it("BE-2 Order list : 1. returns the next page from a cursor", async () => {
+  for (const number of [1, 2, 3, 4, 5]) {
+    await createOrder(number);
+  }
+
+  const first = await listOrders(SHOP, { pageSize: 2 });
+  expect(names(first)).toEqual(["#5", "#4"]);
+  expect(first.hasNextPage).toBe(true);
+  expect(first.hasPreviousPage).toBe(false);
+
+  const middle = await listOrders(SHOP, { pageSize: 2, after: orderId(4) });
+  expect(names(middle)).toEqual(["#3", "#2"]);
+  expect(middle.hasNextPage).toBe(true);
+  expect(middle.hasPreviousPage).toBe(true);
+
+  const last = await listOrders(SHOP, { pageSize: 2, after: orderId(2) });
+  expect(names(last)).toEqual(["#1"]);
+  expect(last.hasNextPage).toBe(false);
+  expect(last.hasPreviousPage).toBe(true);
+});
