@@ -54,3 +54,33 @@ it("BE-2 Order list : 1. the loader returns the shop's orders newest first", asy
     hasPreviousPage: false,
   });
 });
+
+it("BE-2 Order list : 1. the loader rejects a request without a valid session token", async () => {
+  await saveOrder(mapOrder(SHOP, fixtureOrder(fixtures.regular)));
+
+  const thrown = await load(
+    adminRequest("/app", sessionToken(SHOP, "not-the-app-secret"), "GET"),
+  ).catch((failure: unknown) => failure);
+
+  expect((thrown as Response).status).toBe(401);
+});
+
+it("BE-2 Order list : 1. the loader reads the page from the cursor in the URL", async () => {
+  await saveOrder(mapOrder(SHOP, fixtureOrder(fixtures.regular)));
+  await saveOrder(mapOrder(SHOP, fixtureOrder(fixtures.noCustomer)));
+  const newer = fixtureOrder(fixtures.regular).id;
+  const older = fixtureOrder(fixtures.noCustomer).id;
+  const list = async (query: string) => {
+    const result = await load(
+      adminRequest(
+        `/app?shop=${SHOP}&${query}`,
+        sessionToken(SHOP),
+        "GET",
+      ),
+    );
+    return result?.orders.map((order) => order.name);
+  };
+
+  expect(await list(`after=${encodeURIComponent(newer)}`)).toEqual(["#1002"]);
+  expect(await list(`before=${encodeURIComponent(older)}`)).toEqual(["#1006"]);
+});
