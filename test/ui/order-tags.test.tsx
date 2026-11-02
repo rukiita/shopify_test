@@ -62,3 +62,16 @@ it("BE-3 Add tag : 1. the reason is shown when a tag is rejected", () => {
   rerender(<OrderTags {...props} result={{ error }} saving />);
   expect(field(container).hasAttribute("error")).toBe(false);
 });
+
+it("BE-3 Add tag : 1. the field is cleared after a tag is added", () => {
+  const { container, rerender } = render(<OrderTags {...props} saving />);
+  submit(container, "wholesale");
+  const typedIn = field(container);
+
+  rerender(<OrderTags {...props} result={{ error: "Rejected" }} />);
+  // A rejected tag stays, so that it can be corrected.
+  expect(field(container)).toBe(typedIn);
+
+  rerender(<OrderTags {...props} result={{ ok: true }} />);
+  expect(field(container)).not.toBe(typedIn);
+});
