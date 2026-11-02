@@ -65,3 +65,13 @@ it("BE-2 Order list : 1. returns the next page from a cursor", async () => {
   expect(last.hasNextPage).toBe(false);
   expect(last.hasPreviousPage).toBe(true);
 });
+
+it("BE-2 Order list : 1. excludes orders from other shops", async () => {
+  await createOrder(1);
+  await createOrder(2, { shop: "other-shop.myshopify.com" });
+  await createOrder(3);
+
+  const page = await listOrders(SHOP);
+
+  expect(names(page)).toEqual(["#3", "#1"]);
+});
