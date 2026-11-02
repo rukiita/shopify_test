@@ -1,4 +1,5 @@
 import db from "../../db.server";
+import { ORDER_LIST_COLUMNS } from "../domain/order-list-row";
 import type { MappedOrder } from "../domain/order-mapper";
 import { shouldOverwrite } from "../domain/should-overwrite";
 
@@ -142,17 +143,7 @@ async function readOrderPage(
     // direction. A negative take reads backwards and keeps the order.
     take: backwards ? -(pageSize + 1) : pageSize + 1,
     ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {}),
-    select: {
-      id: true,
-      name: true,
-      shopifyCreatedAt: true,
-      customerFullName: true,
-      customerEmail: true,
-      totalPriceMinor: true,
-      currencyCode: true,
-      paymentGateways: true,
-      tags: true,
-    },
+    select: ORDER_LIST_COLUMNS,
   });
 
   const hasMore = orders.length > pageSize;

@@ -1,19 +1,23 @@
-import type { Order } from "@prisma/client";
+import type { Prisma } from "@prisma/client";
 import { formatMoney } from "./money";
 
-// The columns the order list reads from the database.
-export type StoredOrderListRow = Pick<
-  Order,
-  | "id"
-  | "name"
-  | "shopifyCreatedAt"
-  | "customerFullName"
-  | "customerEmail"
-  | "totalPriceMinor"
-  | "currencyCode"
-  | "paymentGateways"
-  | "tags"
->;
+// The columns the order list reads from the database. They decide which customer data
+// can reach the browser, so `customerAddress` is left out.
+export const ORDER_LIST_COLUMNS = {
+  id: true,
+  name: true,
+  shopifyCreatedAt: true,
+  customerFullName: true,
+  customerEmail: true,
+  totalPriceMinor: true,
+  currencyCode: true,
+  paymentGateways: true,
+  tags: true,
+} satisfies Prisma.OrderSelect;
+
+export type StoredOrderListRow = Prisma.OrderGetPayload<{
+  select: typeof ORDER_LIST_COLUMNS;
+}>;
 
 // One row of the order list. Plain data, so a loader can return it: `totalPriceMinor`
 // is a bigint, which JSON.stringify throws on.
