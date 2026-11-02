@@ -67,6 +67,33 @@ it("BE-5 CSV export : 1. starts with a UTF-8 BOM and ends rows with CRLF", () =>
   expect(csv.replaceAll("\r\n", "")).not.toMatch(/[\r\n]/);
 });
 
+it("BE-5 CSV export : 1. writes one row per line item and repeats the order columns", () => {
+  const rows = lines(
+    buildOrdersCsv([
+      order({
+        lineItems: [
+          lineItem({ product: { title: "First", tags: "[]" } }),
+          lineItem({ product: { title: "Second", tags: "[]" } }),
+        ],
+      }),
+    ]),
+  ).slice(1);
+
+  const orderColumns = (row: string) => row.split(",").slice(0, 9);
+  expect(rows).toHaveLength(2);
+  expect(orderColumns(rows[1])).toEqual(orderColumns(rows[0]));
+  expect(rows[0].split(",")[9]).toBe("First");
+  expect(rows[1].split(",")[9]).toBe("Second");
+});
+
+it("BE-5 CSV export : 1. writes one row with empty product columns for an order without line items", () => {
+  const rows = lines(buildOrdersCsv([order({ lineItems: [] })])).slice(1);
+
+  expect(rows).toHaveLength(1);
+  expect(rows[0].split(",")[0]).toBe("6663058751643");
+  expect(rows[0].split(",").slice(9)).toEqual(["", ""]);
+});
+
 it("BE-5 CSV export : 2. outputs Order id as the number in the GID", () => {
   expect(cell(order(), "Order id")).toBe("6663058751643");
 });
@@ -136,3 +163,31 @@ it("BE-5 CSV export : 10. outputs Created at in UTC without milliseconds", () =>
   ).toBe("2026-11-02T13:05:00Z");
 });
 
+it("BE-5 CSV export : 11. outputs Product title", () => {
+  expect(cell(order(), "Product title")).toBe("Product title");
+});
+
+it("BE-5 CSV export : 11. falls back to the title at purchase without a product", () => {
+  expect(
+    cell(order({ lineItems: [lineItem({ product: null })] }), "Product title"),
+  ).toBe("Title at purchase");
+});
+
+it("BE-5 CSV export : 12. outputs Product tags", () => {
+  expect(cell(order(), "Product tags")).toBe("Winter");
+  expect(
+    firstRow(
+      order({
+        lineItems: [
+          lineItem({ product: { title: "P", tags: '["Winter","Sport"]' } }),
+        ],
+      }),
+    ).endsWith(',"Winter, Sport"'),
+  ).toBe(true);
+});
+
+it("BE-5 CSV export : 12. leaves Product tags empty without a product", () => {
+  expect(
+    cell(order({ lineItems: [lineItem({ product: null })] }), "Product tags"),
+  ).toBe("");
+});
