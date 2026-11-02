@@ -247,6 +247,8 @@ Merchants add a tag from the order's row in the list. The tag is checked before 
 
 The limit and the behaviour above were measured on the development store (Admin API 2026-10, #3); the documentation does not state them. The check uses the stored copy of the tags, so a tag added in the Shopify admin a moment ago may not be caught here. `tagsAdd` then does nothing for it, and the stored copy takes the tags Shopify returns.
 
+Merchants remove a tag with the button next to it. The tag is sent exactly as it is stored, because `tagsRemove` matches case-sensitively and ignores a tag it does not find, without an error. It does not go through the checks above, so a tag added elsewhere that they would reject can still be removed.
+
 After a tag edit, the stored copy takes both the `tags` and the `updatedAt` that the mutation returned, unless the stored copy is already newer. With the newer `updatedAt` stored, a webhook's fetch from before the edit cannot overwrite the tags when it finishes late.
 
 ## Implementation choices
