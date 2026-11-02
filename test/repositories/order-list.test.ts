@@ -91,3 +91,17 @@ it("BE-2 Order list : 1. returns the previous page from a cursor", async () => {
   expect(first.hasNextPage).toBe(true);
   expect(first.hasPreviousPage).toBe(false);
 });
+
+it("BE-2 Order list : 1. keeps every order across pages when orders share a created time", async () => {
+  // Added out of ID order, so that the order they were added in does not pass.
+  for (const number of [3, 1, 5, 2, 4]) {
+    await createOrder(number, { createdAt: minutes(0) });
+  }
+  const pageOf = async (cursor: { after?: string; before?: string }) =>
+    names(await listOrders(SHOP, { pageSize: 2, ...cursor }));
+
+  expect(await pageOf({})).toEqual(["#5", "#4"]);
+  expect(await pageOf({ after: orderId(4) })).toEqual(["#3", "#2"]);
+  expect(await pageOf({ after: orderId(2) })).toEqual(["#1"]);
+  expect(await pageOf({ before: orderId(2) })).toEqual(["#4", "#3"]);
+});
