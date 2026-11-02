@@ -2,15 +2,20 @@ import type { ActionFunctionArgs } from "react-router";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import db from "../../app/db.server";
 import { action } from "../../app/routes/app.tags";
+import { action as ordersWebhookAction } from "../../app/routes/webhooks.orders";
 import invalidToken from "../fixtures/admin-invalid-token.json";
 import tagsAddInvalid from "../fixtures/tags-add-invalid.json";
 import tagsAddMissingOrder from "../fixtures/tags-add-missing-order.json";
 import tagsAdded from "../fixtures/tags-add.json";
+import tagsRemoveOtherCase from "../fixtures/tags-remove-other-case.json";
+import tagsRemoveMissingOrder from "../fixtures/tags-remove-missing-order.json";
+import tagsRemoved from "../fixtures/tags-remove.json";
 import { fixtureOrder, fixtures } from "../helpers/order-fixtures";
 import { mockAdminGraphql, resetAdminGraphql } from "../helpers/admin-graphql";
 import { resetDatabase } from "../helpers/database";
 import { createOfflineSession } from "../helpers/session";
 import { adminRequest, sessionToken } from "../helpers/session-token";
+import { signedWebhookRequest } from "../helpers/webhook";
 
 const SHOP = "test-shop.myshopify.com";
 // The order in the captured responses to the tag mutations.
@@ -76,6 +81,9 @@ const mockStore = (mutation: object, order: object = orderAfterAdd) =>
     isTagMutation(variables) ? mutation : order,
   );
 
+const REMOVED = tagsRemoved.data.tagsRemove.node;
+const orderAfterRemove = orderResponse(REMOVED.tags, REMOVED.updatedAt);
+
 const rejectedToken = () =>
   new Response(JSON.stringify(invalidToken), {
     status: 401,
@@ -88,6 +96,18 @@ const rejectedToken = () =>
 const THROTTLED = {
   errors: [{ message: "Throttled", extensions: { code: "THROTTLED" } }],
 };
+
+const removeTag = (tag: string) =>
+  action({
+    request: adminRequest(
+      "/app/tags",
+      sessionToken(SHOP),
+      "POST",
+      new URLSearchParams({ intent: "remove", orderId: ORDER_ID, tag }),
+    ),
+    params: {},
+    context: {},
+  } as ActionFunctionArgs);
 
 it("BE-3 Add tag : 1. calls tagsAdd and updates the stored tags", async () => {
   await createOrder();
@@ -305,4 +325,174 @@ it("BE-3 Add tag : 1. rejects a request that is missing a field", async () => {
 
   expect(result).toEqual({ error: "The tag could not be saved. Try again." });
   expect(requests).toHaveLength(0);
+});
+
+it("BE-4 Remove tag : 1. calls tagsRemove and updates the stored tags", async () => {
+  await createOrder({ tags: ["VIP", "wholesale"] });
+  const requests = mockStore(tagsRemoved, orderAfterRemove);
+
+  const result = await removeTag("VIP");
+
+  expect(result).toEqual({ ok: true });
+  expect(requests).toHaveLength(2);
+  expect(requests[0].query).toContain("tagsRemove(");
+  expect(requests[0].variables).toEqual({ id: ORDER_ID, tags: ["VIP"] });
+  expect(JSON.parse((await storedOrder()).tags)).toEqual(["wholesale"]);
+});
+
+it("BE-4 Remove tag : 1. returns an error and keeps the tag on userErrors", async () => {
+  await createOrder({ tags: ["VIP", "wholesale"] });
+  mockAdminGraphql(SHOP, tagsRemoveMissingOrder);
+
+  const result = await removeTag("VIP");
+
+  expect(result).toEqual({ error: "Order does not exist" });
+  const stored = await storedOrder();
+  expect(JSON.parse(stored.tags)).toEqual(["VIP", "wholesale"]);
+  expect(stored.shopifyUpdatedAt).toEqual(STORED_UPDATED_AT);
+});
+
+it("BE-4 Remove tag : 1. returns an error and keeps the tag when the request fails", async () => {
+  await createOrder({ tags: ["VIP", "wholesale"] });
+  mockAdminGraphql(SHOP, THROTTLED);
+  const logged = vi.spyOn(console, "error").mockImplementation(() => {});
+
+  const result = await removeTag("VIP");
+
+  expect(result).toEqual({ error: "The tag could not be removed. Try again." });
+  expect(logged).toHaveBeenCalledOnce();
+  expect(JSON.parse((await storedOrder()).tags)).toEqual(["VIP", "wholesale"]);
+  logged.mockRestore();
+});
+
+it("BE-4 Remove tag : 1. a request whose access token Shopify rejects throws the 401 that makes App Bridge retry", async () => {
+  await createOrder({ tags: ["VIP"] });
+  mockAdminGraphql(SHOP, rejectedToken);
+
+  const thrown = await removeTag("VIP").catch((error: unknown) => error);
+
+  expect(thrown).toBeInstanceOf(Response);
+  expect((thrown as Response).status).toBe(401);
+});
+
+it("BE-4 Remove tag : 1. rejects removing a tag that does not exist", async () => {
+  await createOrder({ tags: ["VIP"] });
+  const requests = mockAdminGraphql(SHOP, tagsRemoved);
+  const error = "This order does not have that tag";
+
+  expect(await removeTag("wholesale")).toEqual({ error });
+  // tagsRemove matches case-sensitively, so it would do nothing for this one.
+  expect(await removeTag("vip")).toEqual({ error });
+
+  expect(requests).toHaveLength(0);
+  expect(JSON.parse((await storedOrder()).tags)).toEqual(["VIP"]);
+});
+
+it("BE-4 Remove tag : 1. rejects an order of another shop without calling Shopify", async () => {
+  await createOrder({ shop: "other-shop.myshopify.com", tags: ["VIP"] });
+  const requests = mockAdminGraphql(SHOP, tagsRemoved);
+
+  const result = await removeTag("VIP");
+
+  expect(result).toEqual({ error: "This order could not be found" });
+  expect(requests).toHaveLength(0);
+  expect(JSON.parse((await storedOrder()).tags)).toEqual(["VIP"]);
+});
+
+it("BE-4 Remove tag : 1. keeps the order's other tags", async () => {
+  await createOrder({ tags: ["VIP", "wholesale"] });
+  const requests = mockStore(tagsRemoved, orderAfterRemove);
+
+  await removeTag("VIP");
+
+  expect(requests[0].variables?.tags).toEqual(["VIP"]);
+  expect(JSON.parse((await storedOrder()).tags)).toContain("wholesale");
+});
+
+// An orders/updated for the order, whose refetch returns `tags` and `updatedAt`.
+async function deliverOrdersUpdated(tags: string[], updatedAt: string) {
+  mockAdminGraphql(SHOP, orderResponse(tags, updatedAt));
+  await ordersWebhookAction({
+    request: signedWebhookRequest({
+      path: "/webhooks/orders",
+      topic: "orders/updated",
+      shop: SHOP,
+      body: { admin_graphql_api_id: ORDER_ID },
+    }),
+    params: {},
+    context: {},
+  } as ActionFunctionArgs);
+}
+
+it("BE-4 Remove tag : 1. a fetch from before the removal does not bring the tag back", async () => {
+  await createOrder({ tags: ["VIP", "wholesale"] });
+  mockStore(tagsRemoved, orderAfterRemove);
+  await removeTag("VIP");
+
+  // A webhook for an earlier change read the order before the removal, and its write
+  // comes last: the tag is still there, with the updatedAt the stored copy had.
+  await deliverOrdersUpdated(
+    ["VIP", "wholesale"],
+    STORED_UPDATED_AT.toISOString(),
+  );
+
+  expect(JSON.parse((await storedOrder()).tags)).toEqual(["wholesale"]);
+});
+
+it("BE-4 Remove tag : 1. an orders/updated after the removal does not bring the tag back", async () => {
+  await createOrder({ tags: ["VIP", "wholesale"] });
+  mockStore(tagsRemoved, orderAfterRemove);
+  await removeTag("VIP");
+
+  // The webhook for the removal itself: the refetch returns the state after it.
+  await deliverOrdersUpdated(REMOVED.tags, REMOVED.updatedAt);
+
+  const stored = await storedOrder();
+  expect(JSON.parse(stored.tags)).toEqual(["wholesale"]);
+  expect(stored.shopifyUpdatedAt).toEqual(new Date(REMOVED.updatedAt));
+});
+
+it("BE-4 Remove tag : 1. returns an error when tagsRemove leaves the tag, as with another case in Shopify", async () => {
+  // The case was changed in Shopify, and the webhook has not arrived. tagsRemove finds
+  // nothing to remove, and does not say so.
+  await createOrder({ tags: ["SPIKE-vip"] });
+  const { tags, updatedAt } = tagsRemoveOtherCase.data.tagsRemove.node;
+  mockStore(tagsRemoveOtherCase, orderResponse(tags, updatedAt));
+
+  const result = await removeTag("SPIKE-vip");
+
+  expect(result).toEqual({
+    error: "This tag has changed in Shopify. Try again.",
+  });
+  // The stored copy now has the tag as Shopify has it, so trying again removes it.
+  expect(JSON.parse((await storedOrder()).tags)).toContain("spike-VIP");
+});
+
+it("BE-4 Remove tag : 1. returns an error when the stored order cannot be read", async () => {
+  await createOrder();
+  await db.order.update({
+    where: { id: ORDER_ID },
+    data: { tags: "not JSON" },
+  });
+  const requests = mockStore(tagsRemoved, orderAfterRemove);
+  const logged = vi.spyOn(console, "error").mockImplementation(() => {});
+
+  const result = await removeTag("VIP");
+
+  expect(result).toEqual({ error: "The tag could not be removed. Try again." });
+  expect(logged).toHaveBeenCalledOnce();
+  expect(requests).toHaveLength(0);
+  logged.mockRestore();
+});
+
+it("BE-4 Remove tag : 1. reports success when only the refetch after tagsRemove fails", async () => {
+  await createOrder({ tags: ["VIP", "wholesale"] });
+  mockStore(tagsRemoved, THROTTLED);
+  const logged = vi.spyOn(console, "error").mockImplementation(() => {});
+
+  const result = await removeTag("VIP");
+
+  expect(result).toEqual({ ok: true });
+  expect(logged).toHaveBeenCalledOnce();
+  logged.mockRestore();
 });

@@ -5,18 +5,23 @@ interface OrderTagsProps {
   orderName: string;
   tags: string[];
   saving: boolean;
-  // How the last attempt ended, once one has finished.
+  // How the last attempt to add a tag ended, once one has finished.
   result?: TagResult;
+  // Why the last attempt to remove a tag failed.
+  removeError?: string;
   onAdd: (tag: string) => void;
+  onRemove: (tag: string) => void;
 }
 
-// One order's tags in the order list (#3). Presentational: the page owns the request.
+// One order's tags in the order list (#3, #4). Presentational: the page owns the request.
 export function OrderTags({
   orderName,
   tags,
   saving,
   result,
+  removeError,
   onAdd,
+  onRemove,
 }: OrderTagsProps) {
   const field = useRef<HTMLElementTagNameMap["s-text-field"]>(null);
 
@@ -52,10 +57,29 @@ export function OrderTags({
       {tags.length > 0 && (
         <s-stack direction="inline" gap="small-200">
           {tags.map((tag) => (
-            <s-chip key={tag}>{tag}</s-chip>
+            <s-stack
+              key={tag}
+              direction="inline"
+              gap="small-500"
+              alignItems="center"
+            >
+              <s-chip>{tag}</s-chip>
+              <s-button
+                variant="tertiary"
+                icon="x"
+                accessibilityLabel={`Remove tag ${tag}`}
+                onClick={() => {
+                  if (!saving) {
+                    onRemove(tag);
+                  }
+                }}
+                {...(saving ? { disabled: true } : {})}
+              />
+            </s-stack>
           ))}
         </s-stack>
       )}
+      {removeError && !saving && <s-text tone="critical">{removeError}</s-text>}
       <form onSubmit={submit}>
         <s-grid
           gridTemplateColumns="1fr auto"

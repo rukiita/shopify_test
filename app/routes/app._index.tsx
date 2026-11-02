@@ -41,22 +41,39 @@ const browserTimeZone = () => Intl.DateTimeFormat().resolvedOptions().timeZone;
 // client render switches to the browser's without a hydration mismatch.
 const serverTimeZone = () => "UTC";
 
-// One fetcher per order, so that saving and the result stay on that order's row.
+// The row's own fetchers, so that saving and the result stay on that order's row. One each
+// for adding and removing, because only an added tag clears the field, and the two show
+// their errors in different places. Starting one clears the other's last result.
 function OrderTagsCell({ order }: { order: OrderListRow }) {
-  const fetcher = useFetcher<typeof tagsAction>();
+  const adder = useFetcher<typeof tagsAction>();
+  const remover = useFetcher<typeof tagsAction>();
+  const submit = (
+    fetcher: typeof adder,
+    intent: "add" | "remove",
+    tag: string,
+  ) =>
+    fetcher.submit(
+      { intent, orderId: order.id, tag },
+      { method: "POST", action: "/app/tags" },
+    );
 
   return (
     <OrderTags
       orderName={order.name}
       tags={order.tags}
-      saving={fetcher.state !== "idle"}
-      result={fetcher.data}
-      onAdd={(tag) =>
-        fetcher.submit(
-          { intent: "add", orderId: order.id, tag },
-          { method: "POST", action: "/app/tags" },
-        )
+      saving={adder.state !== "idle" || remover.state !== "idle"}
+      result={adder.data}
+      removeError={
+        remover.data && "error" in remover.data ? remover.data.error : undefined
       }
+      onAdd={(tag) => {
+        remover.reset();
+        submit(adder, "add", tag);
+      }}
+      onRemove={(tag) => {
+        adder.reset();
+        submit(remover, "remove", tag);
+      }}
     />
   );
 }

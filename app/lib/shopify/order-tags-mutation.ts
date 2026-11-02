@@ -17,3 +17,21 @@ export const ADD_ORDER_TAG_MUTATION = `#graphql
     }
   }
 `;
+
+export const REMOVE_ORDER_TAG_MUTATION = `#graphql
+  mutation RemoveOrderTag($id: ID!, $tags: [String!]!) {
+    tagsRemove(id: $id, tags: $tags) {
+      node {
+        ... on Order {
+          id
+          tags
+          updatedAt
+        }
+      }
+      userErrors {
+        field
+        message
+      }
+    }
+  }
+`;
