@@ -50,3 +50,15 @@ it("BE-3 Add tag : 1. the add button is disabled while saving", () => {
   submit(container, "wholesale");
   expect(onAdd).not.toHaveBeenCalled();
 });
+
+it("BE-3 Add tag : 1. the reason is shown when a tag is rejected", () => {
+  const error = "This order already has that tag";
+  const { container, rerender } = render(
+    <OrderTags {...props} result={{ error }} />,
+  );
+  expect(field(container).getAttribute("error")).toBe(error);
+
+  // The reason is about the last attempt, so it goes while the next one is saved.
+  rerender(<OrderTags {...props} result={{ error }} saving />);
+  expect(field(container).hasAttribute("error")).toBe(false);
+});
