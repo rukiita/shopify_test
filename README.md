@@ -233,6 +233,22 @@ Order number, created at, customer, email, total, payment gateway, tags. These a
 
 Orders are listed newest first, 50 per page, from the app's database, so a page view makes no Shopify API call. *Created at* is shown in the browser's time zone: the app does not store the shop's time zone, so it can differ from the Shopify admin when the two zones differ. *Total* is shown in the order's stored currency, formatted in English (`$11.99`, `¥1,500`).
 
+### Order tags
+
+Merchants add a tag from the order's row in the list. The tag is checked before it is sent to Shopify:
+
+| Input | Result | Why |
+|---|---|---|
+| Surrounding whitespace | Trimmed | |
+| Empty | Rejected | |
+| Contains a comma | Rejected | `tagsAdd` splits `a,b` into two tags |
+| Over 55 characters | Rejected | Shopify answers `Order tags is invalid` from 56. An emoji counts as one character |
+| The order already has it, in any case | Rejected | `tagsAdd` treats `vip` as an existing `VIP`, and does nothing |
+
+The limit and the behaviour above were measured on the development store (Admin API 2026-10, #3); the documentation does not state them. The check uses the stored copy of the tags, so a tag added in the Shopify admin a moment ago may not be caught here. `tagsAdd` then does nothing for it, and the stored copy takes the tags Shopify returns.
+
+After a tag edit, the stored copy takes both the `tags` and the `updatedAt` that the mutation returned, unless the stored copy is already newer. With the newer `updatedAt` stored, a webhook's fetch from before the edit cannot overwrite the tags when it finishes late.
+
 ## Implementation choices
 
 Design decisions are recorded as Architecture Decision Records in [docs/adr/](docs/adr/README.md).
