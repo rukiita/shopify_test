@@ -88,6 +88,26 @@ export async function findStoredUpdatedAt(shop: string, orderIds: string[]) {
   return new Map(stored.map((order) => [order.id, order.shopifyUpdatedAt]));
 }
 
+// One page of a shop's orders, newest first, with the columns the order list shows.
+export async function listOrders(shop: string) {
+  const orders = await db.order.findMany({
+    where: { shop },
+    orderBy: { shopifyCreatedAt: "desc" },
+    select: {
+      id: true,
+      name: true,
+      shopifyCreatedAt: true,
+      customerFullName: true,
+      customerEmail: true,
+      totalPriceMinor: true,
+      currencyCode: true,
+      paymentGateways: true,
+      tags: true,
+    },
+  });
+  return { orders, hasNextPage: false, hasPreviousPage: false };
+}
+
 // Removes the customer's email, name and address from the given orders of a shop
 // (customers/redact), and marks the orders so that a later ingestion does not
 // write them back. The order, its line items and tags stay. Orders not stored
