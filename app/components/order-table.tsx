@@ -16,7 +16,25 @@ interface OrderTableProps {
 }
 
 // The order list (#2). Presentational: the page owns the data and the navigation.
-export function OrderTable({
+export function OrderTable(props: OrderTableProps) {
+  return props.orders.length > 0 ? <PagedTable {...props} /> : <NoOrders />;
+}
+
+function NoOrders() {
+  return (
+    <s-box padding="base">
+      <s-stack direction="block" gap="small-200">
+        <s-heading>No orders yet</s-heading>
+        <s-paragraph>
+          New orders appear here when they are placed or changed in your store.
+          To import orders placed before the app was installed, use Sync orders.
+        </s-paragraph>
+      </s-stack>
+    </s-box>
+  );
+}
+
+function PagedTable({
   orders,
   timeZone,
   loading,
