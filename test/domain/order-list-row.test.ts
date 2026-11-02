@@ -37,3 +37,9 @@ it("BE-2 Order list : 1. shows the created time in the given time zone", () => {
   expect(formatOrderDate(createdAt, "UTC")).toBe("Nov 1, 2026, 8:17 PM");
   expect(formatOrderDate(createdAt, "Asia/Tokyo")).toBe("Nov 2, 2026, 5:17 AM");
 });
+
+it("BE-2 Order list : 1. falls back to UTC when the time zone is not valid", () => {
+  expect(formatOrderDate("2026-11-01T20:17:27.000Z", "Etc/Unknown")).toBe(
+    "Nov 1, 2026, 8:17 PM",
+  );
+});
