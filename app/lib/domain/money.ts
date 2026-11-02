@@ -38,8 +38,20 @@ export function formatMoney(minorUnits: bigint, currencyCode: string): string {
   return currencyFormat(currencyCode).format(decimal as unknown as number);
 }
 
-const currencyFormat = (currencyCode: string) =>
-  new Intl.NumberFormat("en", { style: "currency", currency: currencyCode });
+// Kept per currency: a page formats every row.
+const currencyFormats = new Map<string, Intl.NumberFormat>();
+
+function currencyFormat(currencyCode: string) {
+  let format = currencyFormats.get(currencyCode);
+  if (!format) {
+    format = new Intl.NumberFormat("en", {
+      style: "currency",
+      currency: currencyCode,
+    });
+    currencyFormats.set(currencyCode, format);
+  }
+  return format;
+}
 
 function currencyFractionDigits(currencyCode: string) {
   const fractionDigits =
