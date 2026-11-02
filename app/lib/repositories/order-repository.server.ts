@@ -89,6 +89,18 @@ export async function findStoredUpdatedAt(shop: string, orderIds: string[]) {
   return new Map(stored.map((order) => [order.id, order.shopifyUpdatedAt]));
 }
 
+// The stored tags of an order of a shop, or null when the shop has no such order.
+export async function findOrderTags(
+  shop: string,
+  orderId: string,
+): Promise<string[] | null> {
+  const order = await db.order.findFirst({
+    where: { id: orderId, shop },
+    select: { tags: true },
+  });
+  return order && JSON.parse(order.tags);
+}
+
 const ORDER_LIST_PAGE_SIZE = 50;
 
 interface ListOrdersOptions {

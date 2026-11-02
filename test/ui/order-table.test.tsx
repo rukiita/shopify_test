@@ -23,6 +23,7 @@ const order: OrderListRow = {
 const props = {
   timeZone: "UTC",
   emptyAction: null,
+  renderTags: (order: OrderListRow) => `Tags of ${order.name}`,
   loading: false,
   hasNextPage: false,
   hasPreviousPage: false,
@@ -64,7 +65,7 @@ it("BE-2 Order list : 1. the table shows each order's columns, in the order give
     "test.buyer@example.com",
     "$1,385.95",
     "bogus, manual",
-    "Snowboard, VIP",
+    "Tags of #1006",
   ]);
   expect(cellText(rows[1])[0]).toBe("#1005");
 });
@@ -79,7 +80,6 @@ it("BE-2 Order list : 1. a column with no value shows a dash", () => {
           customerName: null,
           customerEmail: null,
           paymentGateways: [],
-          tags: [],
         },
       ]}
     />,
@@ -93,7 +93,7 @@ it("BE-2 Order list : 1. a column with no value shows a dash", () => {
     "—",
     "$1,385.95",
     "—",
-    "—",
+    "Tags of #1006",
   ]);
 });
 

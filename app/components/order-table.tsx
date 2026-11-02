@@ -10,6 +10,8 @@ interface OrderTableProps {
   timeZone: string;
   // Shown with the empty state, to get orders into the list.
   emptyAction: ReactNode;
+  // What the tags column shows for an order.
+  renderTags: (order: OrderListRow) => ReactNode;
   loading: boolean;
   hasNextPage: boolean;
   hasPreviousPage: boolean;
@@ -46,6 +48,7 @@ function NoOrders({ action }: { action: ReactNode }) {
 function PagedTable({
   orders,
   timeZone,
+  renderTags,
   loading,
   hasNextPage,
   hasPreviousPage,
@@ -100,7 +103,7 @@ function PagedTable({
             <s-table-cell>{order.customerEmail ?? NO_VALUE}</s-table-cell>
             <s-table-cell>{order.total}</s-table-cell>
             <s-table-cell>{list(order.paymentGateways)}</s-table-cell>
-            <s-table-cell>{list(order.tags)}</s-table-cell>
+            <s-table-cell>{renderTags(order)}</s-table-cell>
           </s-table-row>
         ))}
       </s-table-body>

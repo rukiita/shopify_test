@@ -1,0 +1,26 @@
+{
+  "data": {
+    "tagsAdd": {
+      "node": {
+        "id": "gid://shopify/Order/6665501474971",
+        "tags": [
+          "VIP",
+          "wholesale"
+        ],
+        "updatedAt": "2026-11-02T07:14:05Z"
+      },
+      "userErrors": []
+    }
+  },
+  "extensions": {
+    "cost": {
+      "requestedQueryCost": 10,
+      "actualQueryCost": 10,
+      "throttleStatus": {
+        "maximumAvailable": 2000.0,
+        "currentlyAvailable": 1990,
+        "restoreRate": 100.0
+      }
+    }
+  }
+}

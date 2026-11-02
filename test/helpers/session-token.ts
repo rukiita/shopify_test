@@ -35,9 +35,15 @@ export function sessionToken(shop: string, secret: string = TEST_API_SECRET) {
 }
 
 // A request from the embedded app to an app route, e.g. a POST to `/app/sync`.
-export function adminRequest(path: string, token?: string, method = "POST") {
+export function adminRequest(
+  path: string,
+  token?: string,
+  method = "POST",
+  body?: URLSearchParams,
+) {
   return new Request(new URL(path, TEST_APP_URL), {
     method,
     headers: token ? { Authorization: `Bearer ${token}` } : {},
+    body,
   });
 }
