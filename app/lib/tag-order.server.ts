@@ -1,4 +1,8 @@
 import type { AdminApiContext } from "@shopify/shopify-app-react-router/server";
+import type {
+  AddOrderTagMutation,
+  RemoveOrderTagMutation,
+} from "../types/admin.generated";
 import { normalizeTag } from "./domain/normalize-tag";
 import { ingestOrder } from "./ingest-order.server";
 import { findOrderTags } from "./repositories/order-repository.server";
@@ -8,6 +12,8 @@ import {
 } from "./shopify/order-tags-mutation";
 
 export type TagResult = { ok: true } | { error: string };
+
+const ORDER_NOT_FOUND = { error: "This order could not be found" };
 
 export const TAG_NOT_SAVED = {
   error: "The tag could not be saved. Try again.",
@@ -23,7 +29,7 @@ export async function addOrderTag(
   try {
     const tags = await findOrderTags(shop, orderId);
     if (!tags) {
-      return { error: "This order could not be found" };
+      return ORDER_NOT_FOUND;
     }
     let normalized = normalizeTag(input, tags);
     // Rejected only because of the stored tags, which are behind Shopify while a webhook
@@ -43,16 +49,7 @@ export async function addOrderTag(
       variables: { id: orderId, tags: [normalized.tag] },
     });
     const { data } = await response.json();
-    const userError = data?.tagsAdd?.userErrors[0];
-    if (userError) {
-      return { error: userError.message };
-    }
-    if (!data?.tagsAdd?.node) {
-      throw new Error("tagsAdd returned no order");
-    }
-
-    await storeOrderAfterWrite(admin, shop, orderId);
-    return { ok: true };
+    return await completeTagWrite(admin, shop, orderId, data?.tagsAdd);
   } catch (error) {
     rethrowExpiredToken(error);
     console.error(`Adding a tag to ${orderId} of ${shop} failed`, error);
@@ -69,34 +66,59 @@ export async function removeOrderTag(
   orderId: string,
   tag: string,
 ): Promise<TagResult> {
-  const tags = await findOrderTags(shop, orderId);
-  if (!tags) {
-    return { error: "This order could not be found" };
-  }
-  if (!tags.includes(tag)) {
-    return { error: "This order does not have that tag" };
-  }
-
   try {
+    const tags = await findOrderTags(shop, orderId);
+    if (!tags) {
+      return ORDER_NOT_FOUND;
+    }
+    if (!tags.includes(tag)) {
+      return { error: "This order does not have that tag" };
+    }
+
     const response = await admin.graphql(REMOVE_ORDER_TAG_MUTATION, {
       variables: { id: orderId, tags: [tag] },
     });
     const { data } = await response.json();
-    const userError = data?.tagsRemove?.userErrors[0];
-    if (userError) {
-      return { error: userError.message };
-    }
-    if (!data?.tagsRemove?.node) {
-      throw new Error("tagsRemove returned no order");
+    const payload = data?.tagsRemove;
+
+    // tagsRemove ignores a tag it does not find, without an error. The stored tag can
+    // differ in case from Shopify's while a webhook is late, so the case is ignored here.
+    // Storing the order shows the tag as Shopify has it, so trying again removes it.
+    const lowerCase = tag.toLowerCase();
+    if (
+      payload?.node?.tags.some((other) => other.toLowerCase() === lowerCase)
+    ) {
+      await storeOrderAfterWrite(admin, shop, orderId);
+      return { error: "This tag has changed in Shopify. Try again." };
     }
 
-    await storeOrderAfterWrite(admin, shop, orderId);
-    return { ok: true };
+    return await completeTagWrite(admin, shop, orderId, payload);
   } catch (error) {
     rethrowExpiredToken(error);
     console.error(`Removing a tag from ${orderId} of ${shop} failed`, error);
     return { error: "The tag could not be removed. Try again." };
   }
+}
+
+type TagMutationPayload =
+  AddOrderTagMutation["tagsAdd"] | RemoveOrderTagMutation["tagsRemove"];
+
+async function completeTagWrite(
+  admin: AdminApiContext,
+  shop: string,
+  orderId: string,
+  payload: TagMutationPayload,
+): Promise<TagResult> {
+  const userError = payload?.userErrors[0];
+  if (userError) {
+    return { error: userError.message };
+  }
+  if (!payload?.node) {
+    throw new Error("The tag mutation returned no order");
+  }
+
+  await storeOrderAfterWrite(admin, shop, orderId);
+  return { ok: true };
 }
 
 // Refetches and stores the whole order, as a webhook would (ADR-0003). Writing only the
