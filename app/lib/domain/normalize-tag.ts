@@ -4,5 +4,9 @@ export function normalizeTag(
   input: string,
   _existing: string[],
 ): { tag: string } | { error: string } {
-  return { tag: input.trim() };
+  const tag = input.trim();
+  if (!tag) {
+    return { error: "Enter a tag" };
+  }
+  return { tag };
 }
