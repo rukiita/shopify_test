@@ -115,7 +115,22 @@ export async function listOrders(
         })
       )?.id
     : undefined;
-  const backwards = Boolean(cursor) && !after;
+
+  const page = await readOrderPage(shop, pageSize, cursor, !after);
+  // A saved URL of the last page, once nothing is past its cursor. The first page, so
+  // the list does not look empty for a shop that has orders.
+  return cursor && page.orders.length === 0
+    ? readOrderPage(shop, pageSize)
+    : page;
+}
+
+async function readOrderPage(
+  shop: string,
+  pageSize: number,
+  cursor?: string,
+  beforeCursor = false,
+) {
+  const backwards = Boolean(cursor) && beforeCursor;
 
   const orders = await db.order.findMany({
     where: { shop },
