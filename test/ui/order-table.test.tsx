@@ -143,3 +143,14 @@ it("BE-2 Order list : 1. a single page of orders has no pagination controls", ()
 
   expect(container.querySelector("s-table")?.paginate).toBe(false);
 });
+
+it("BE-2 Order list : 1. an empty state explains how orders arrive and points to Sync", () => {
+  const { container } = render(<OrderTable {...props} orders={[]} />);
+
+  expect(container.querySelector("s-table")).toBeNull();
+  expect(container.querySelector("s-heading")?.textContent).toBe("No orders yet");
+  expect(container.textContent).toContain(
+    "New orders appear here when they are placed or changed in your store.",
+  );
+  expect(container.textContent).toContain("Sync orders");
+});
