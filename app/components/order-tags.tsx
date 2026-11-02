@@ -13,7 +13,9 @@ export function OrderTags({ orderName, tags, saving, onAdd }: OrderTagsProps) {
 
   const submit = (event: FormEvent) => {
     event.preventDefault();
-    onAdd(field.current!.value);
+    if (!saving) {
+      onAdd(field.current!.value);
+    }
   };
 
   return (
@@ -33,7 +35,15 @@ export function OrderTags({ orderName, tags, saving, onAdd }: OrderTagsProps) {
             labelAccessibilityVisibility="exclusive"
             name="tag"
           />
-          <s-button type="submit">Add</s-button>
+          {/* React 18 writes `disabled={false}` as the attribute disabled="false",
+              which still disables the button, so the attributes are only added
+              while saving. */}
+          <s-button
+            type="submit"
+            {...(saving ? { disabled: true, loading: true } : {})}
+          >
+            Add
+          </s-button>
         </s-grid>
       </form>
     </s-stack>
