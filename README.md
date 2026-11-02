@@ -171,7 +171,7 @@ Shopify requires every public app, listed on the App Store or not, to handle thr
 |---|---|---|
 | `customers/redact` | 10 days after a merchant requests the deletion of a customer's data | Sets the three customer fields to null on the orders listed in `orders_to_redact`, within the shop, and sets `customerRedacted`. A later ingestion of such an order (for example `orders/updated` after a refund) keeps the three fields null, whatever Shopify returns. The order, its line items and tags stay, as they do in Shopify. Listed orders the app never stored are skipped |
 | `shop/redact` | 48 hours after the app is uninstalled | Deletes the shop's orders, line items and products, as `app/uninstalled` does. If the shop has a session again (the app was installed again in those 48 hours), it deletes nothing: `app/uninstalled` deletes the sessions, and the data then belongs to the new install. Shopify's documentation does not say whether a reinstall cancels `shop/redact` |
-| `customers/data_request` | When a customer asks a merchant for their data | Nothing beyond logging the topic and shop; customer details are not logged. The app sends nothing to the customer. The stored fields are copies of the merchant's own orders, so the merchant already has them in the Shopify admin. The app's order list shows the name and email, and CSV export (#5) will show all three |
+| `customers/data_request` | When a customer asks a merchant for their data | Nothing beyond logging the topic and shop; customer details are not logged. The app sends nothing to the customer. The stored fields are copies of the merchant's own orders, so the merchant already has them in the Shopify admin. The app's order list shows the name and email, and the CSV export shows all three |
 
 Orders are matched by ID only (`orders_to_redact`, numeric IDs turned into GIDs), because the app does not store the customer ID. Customer data on an order not in that list stays. The routes do not need a session, so redaction also runs after the app was uninstalled.
 
@@ -218,10 +218,17 @@ The address lines from Shopify (`formatted`, without the name) are joined with `
 | Item | Format |
 |---|---|
 | Columns | The nine fields of the CSV template, in order, followed by *Product title* and *Product tags* |
+| Order id | The numeric ID, e.g. `6663058751643` from `gid://shopify/Order/6663058751643`. It is the `id` in `order/id.json` and in the Shopify admin's order URL |
+| Order number | The number without the shop's prefix, e.g. `1006` for `#1006` |
+| Total price | A plain decimal in the order's currency, without a symbol: `11.99`, `1500` (JPY), `1.234` (KWD) |
 | Multiple values in one cell (tags, payment gateways) | Joined with `, ` and quoted |
-| Dates | ISO 8601 with offset, e.g. `2026-10-31T10:00:00+09:00` |
+| Dates | ISO 8601 in UTC, e.g. `2026-11-02T13:05:00Z`. The shop's time zone is not stored, and UTC does not depend on the server's |
 | Encoding | UTF-8 with a BOM, so Excel opens non-ASCII names and addresses correctly |
+| Line endings | CRLF (RFC 4180) |
 | Escaping | RFC 4180 (values containing `,`, `"` or line breaks are quoted; `"` is doubled) |
+| Formula cells | A text cell (payment gateway, customer fields, tags, product title, product tags) starting with `=`, `+`, `-`, `@`, tab or carriage return gets a leading `'`, because a spreadsheet can run such a cell as a formula. Numeric and generated columns (order id, order number, total price, created at) never do, so a negative total stays a number |
+
+Merchants download the file with the **Export CSV** button above the order list, which is shown once the shop has orders. The file has all of the shop's orders, newest first, with a line item's rows in the order of their IDs, and is built from the app's database, so an export makes no Shopify API call. An order without line items still gets one row, with the product columns empty.
 
 ### Distribution: public
 
@@ -268,6 +275,7 @@ _(to be expanded — Step 8)_
 _(to be completed — Step 8, #12)_
 
 - `read_customers` was added after the first install (#1). A store installed before that has it only once the merchant opens the app and approves the new scope. Until then the order query is denied, and order webhooks for that store fail and are retried
+- The CSV export reads all of a shop's orders and builds the file in memory within one request, which has not been measured on a large store. For large stores, stream the rows or build the file in a background job (#5)
 - Only the first 250 line items of an order are stored (one GraphQL page, `lineItems(first: 250)`). Line items beyond that are not stored and not in the CSV (#1)
 - Order webhooks are processed within the request: the order is fetched and stored before the app responds ([ADR-0005](docs/adr/0005-process-webhooks-synchronously.md)). One delivery takes about 0.5 s against Shopify's 5-second limit. Database writes run one at a time over one SQLite connection, so deliveries that arrive at the same time wait for each other (#77). A burst of more than about 75 large or 170 small orders at once (measured on the database write alone; through the route it may be fewer) fails in part and is left to Shopify's retries. In production, process webhooks from a queue, use a database that allows concurrent writes, and reconcile orders whose deliveries were dropped. No reconciliation job is planned; the sync ([step 6](#6-import-existing-orders)) can be run by hand and imports the orders from the last 60 days that are missing or changed
 - `customers/redact` marks only orders the app has already stored. An order in `orders_to_redact` that is stored later (for example by the sync of existing orders) gets its customer fields as Shopify returns them then (#65)
