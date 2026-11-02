@@ -25,18 +25,17 @@ export function OrderTable({
   onNextPage,
   onPreviousPage,
 }: OrderTableProps) {
-  const table = useRef<HTMLElement>(null);
+  const table = useRef<HTMLElementTagNameMap["s-table"]>(null);
 
   // React 18 writes every prop of a custom element as an attribute, so false would
   // become the attribute "false", and it does not listen to `onNextPage` at all. So
   // these are set on the element directly.
   useEffect(() => {
-    Object.assign(table.current!, {
-      paginate: hasNextPage || hasPreviousPage,
-      loading,
-      hasNextPage,
-      hasPreviousPage,
-    });
+    const element = table.current!;
+    element.paginate = hasNextPage || hasPreviousPage;
+    element.loading = loading;
+    element.hasNextPage = hasNextPage;
+    element.hasPreviousPage = hasPreviousPage;
   }, [loading, hasNextPage, hasPreviousPage]);
 
   useEffect(() => {

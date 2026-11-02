@@ -108,13 +108,7 @@ it("BE-2 Order list : 1. nextpage and previouspage events call the handlers, and
     />,
   );
   // Properties: React 18 would write hasNextPage={false} as the attribute "false".
-  const table = () =>
-    container.querySelector("s-table") as unknown as HTMLElement & {
-      paginate: boolean;
-      hasNextPage: boolean;
-      hasPreviousPage: boolean;
-      loading: boolean;
-    };
+  const table = () => container.querySelector("s-table")!;
   expect(table().paginate).toBe(true);
   expect(table().hasNextPage).toBe(true);
   expect(table().hasPreviousPage).toBe(false);
@@ -147,8 +141,5 @@ it("BE-2 Order list : 1. nextpage and previouspage events call the handlers, and
 it("BE-2 Order list : 1. a single page of orders has no pagination controls", () => {
   const { container } = render(<OrderTable {...props} orders={[order]} />);
 
-  const table = container.querySelector("s-table") as unknown as {
-    paginate: boolean;
-  };
-  expect(table.paginate).toBe(false);
+  expect(container.querySelector("s-table")?.paginate).toBe(false);
 });
