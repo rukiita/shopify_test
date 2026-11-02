@@ -1,4 +1,4 @@
-import { useRef, type FormEvent } from "react";
+import { useEffect, useRef, useState, type FormEvent } from "react";
 import type { TagResult } from "../lib/tag-order.server";
 
 interface OrderTagsProps {
@@ -19,6 +19,15 @@ export function OrderTags({
   onAdd,
 }: OrderTagsProps) {
   const field = useRef<HTMLElementTagNameMap["s-text-field"]>(null);
+
+  // Cleared by replacing the element: Polaris can drop a property set from an effect
+  // on a hydrated element (#2).
+  const [fieldKey, setFieldKey] = useState(0);
+  useEffect(() => {
+    if (result && "ok" in result) {
+      setFieldKey((key) => key + 1);
+    }
+  }, [result]);
 
   const error = !saving && result && "error" in result ? result.error : null;
 
@@ -41,6 +50,7 @@ export function OrderTags({
       <form onSubmit={submit}>
         <s-grid gridTemplateColumns="1fr auto" gap="small-200" alignItems="start">
           <s-text-field
+            key={fieldKey}
             ref={field}
             label={`Add a tag to ${orderName}`}
             labelAccessibilityVisibility="exclusive"
