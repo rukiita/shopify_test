@@ -5,6 +5,7 @@ import { action } from "../../app/routes/app.tags";
 import tagsAddInvalid from "../fixtures/tags-add-invalid.json";
 import tagsAddMissingOrder from "../fixtures/tags-add-missing-order.json";
 import tagsAdded from "../fixtures/tags-add.json";
+import tagsRemoved from "../fixtures/tags-remove.json";
 import { mockAdminGraphql, resetAdminGraphql } from "../helpers/admin-graphql";
 import { resetDatabase } from "../helpers/database";
 import { createOfflineSession } from "../helpers/session";
@@ -49,6 +50,18 @@ const addTag = (tag: string) =>
       sessionToken(SHOP),
       "POST",
       new URLSearchParams({ intent: "add", orderId: ORDER_ID, tag }),
+    ),
+    params: {},
+    context: {},
+  } as ActionFunctionArgs);
+
+const removeTag = (tag: string) =>
+  action({
+    request: adminRequest(
+      "/app/tags",
+      sessionToken(SHOP),
+      "POST",
+      new URLSearchParams({ intent: "remove", orderId: ORDER_ID, tag }),
     ),
     params: {},
     context: {},
@@ -217,4 +230,17 @@ it("BE-3 Add tag : 1. rejects a request that is missing a field", async () => {
 
   expect(result).toEqual({ error: "The tag could not be saved. Try again." });
   expect(requests).toHaveLength(0);
+});
+
+it("BE-4 Remove tag : 1. calls tagsRemove and updates the stored tags", async () => {
+  await createOrder({ tags: ["VIP", "wholesale"] });
+  const requests = mockAdminGraphql(SHOP, tagsRemoved);
+
+  const result = await removeTag("VIP");
+
+  expect(result).toEqual({ ok: true });
+  expect(requests).toHaveLength(1);
+  expect(requests[0].query).toContain("tagsRemove(");
+  expect(requests[0].variables).toEqual({ id: ORDER_ID, tags: ["VIP"] });
+  expect(JSON.parse((await storedOrder()).tags)).toEqual(["wholesale"]);
 });
