@@ -85,14 +85,27 @@ function toRows(order: StoredExportOrder) {
 const joinList = (stored: string) =>
   (JSON.parse(stored) as string[]).join(", ");
 
-// Free text can start with something a spreadsheet would run as a formula, and quoting
-// does not stop it, so the cell gets a leading apostrophe. The characters are the ones
-// the OWASP page on CSV injection lists, including the full-width ＝＋－＠. Numeric and
-// generated columns do not go through this, so that a negative total stays a number.
-const textCell = (value: string) =>
-  /^[=+\-@\t\r\n\uFF1D\uFF0B\uFF0D\uFF20]/.test(value) ? `'${value}` : value;
+// The characters that start a formula, from the OWASP page on CSV injection, including
+// the full-width ＝＋－＠.
+const FORMULA_CHARACTERS = "=+\\-@\\t\\uFF1D\\uFF0B\\uFF0D\\uFF20";
+const FORMULA_START = new RegExp(`^[${FORMULA_CHARACTERS}\\r\\n]`);
+// Where ; is the spreadsheet's separator, commas do not split a line, so a value's
+// opening quote is in the middle of a cell and does not protect it: the value is cut at
+// each ; and line break. A quote can come first, because it starts a quoted cell there.
+const FORMULA_AFTER_SEPARATOR = new RegExp(
+  `[;\\r\\n]+(?="*[${FORMULA_CHARACTERS}])`,
+  "g",
+);
 
-// RFC 4180. A semicolon is quoted too: it is the separator in Excel in some locales,
-// where the rest of the value would become a cell of its own and could run as a formula.
+// Free text can contain something a spreadsheet would run as a formula, and quoting does
+// not stop it at the start of a cell, so an apostrophe goes in front of it. Numeric and
+// generated columns do not go through this, so that a negative total stays a number.
+const textCell = (value: string) => {
+  const text = value.replace(FORMULA_AFTER_SEPARATOR, "$&'");
+  return FORMULA_START.test(text) ? `'${text}` : text;
+};
+
+// RFC 4180. A semicolon is quoted too, for a reader that accepts both , and ; as
+// separators and honours the quote. It does not protect a file cut only at ; (see above).
 const escapeCell = (value: string) =>
   /[",;\r\n]/.test(value) ? `"${value.replaceAll('"', '""')}"` : value;
