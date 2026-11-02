@@ -37,3 +37,16 @@ it("BE-3 Add tag : 1. shows the order's tags, and adds the tag in the field on s
 
   expect(onAdd).toHaveBeenCalledExactlyOnceWith("wholesale");
 });
+
+it("BE-3 Add tag : 1. the add button is disabled while saving", () => {
+  const onAdd = vi.fn();
+  const { container } = render(<OrderTags {...props} onAdd={onAdd} saving />);
+
+  const button = container.querySelector("s-button");
+  expect(button?.hasAttribute("disabled")).toBe(true);
+  expect(button?.hasAttribute("loading")).toBe(true);
+
+  // Enter in the field submits the form without going through the button.
+  submit(container, "wholesale");
+  expect(onAdd).not.toHaveBeenCalled();
+});
