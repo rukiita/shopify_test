@@ -112,6 +112,60 @@ it("BE-5 CSV export : 1. writes one row with empty product columns for an order 
   expect(rows[0].split(",").slice(9)).toEqual(["", ""]);
 });
 
+it.each(["=", "+", "-", "@", "\t"])(
+  "BE-5 CSV export : 1. prefixes a text cell starting with =, +, -, @, tab or carriage return with an apostrophe (%j)",
+  (start) => {
+    const value = `${start}1`;
+    const cells = firstRow(
+      order({
+        paymentGateways: JSON.stringify([value]),
+        customerEmail: value,
+        customerFullName: value,
+        customerAddress: value,
+        tags: JSON.stringify([value]),
+        lineItems: [
+          lineItem({
+            product: { title: value, tags: JSON.stringify([value]) },
+          }),
+        ],
+      }),
+    ).split(",");
+
+    const written = Array(5).fill(`'${value}`);
+    expect(cells.slice(3, 8)).toEqual(written);
+    expect(cells.slice(9)).toEqual(written.slice(0, 2));
+  },
+);
+
+it("BE-5 CSV export : 1. prefixes a text cell starting with a carriage return, and quotes it", () => {
+  expect(firstRow(order({ tags: '["\\r1"]' }))).toContain(`,"'\r1",`);
+});
+
+it("BE-5 CSV export : 1. prefixes the title at purchase used as the Product title", () => {
+  expect(
+    cell(
+      order({ lineItems: [lineItem({ title: "=1", product: null })] }),
+      "Product title",
+    ),
+  ).toBe("'=1");
+});
+
+it("BE-5 CSV export : 1. quotes a prefixed value that also needs escaping", () => {
+  const row = firstRow(order({ tags: JSON.stringify(["=a", 'b"c']) }));
+
+  expect(row).toContain(`,"'=a, b""c",`);
+});
+
+it("BE-5 CSV export : 1. does not prefix a value with those characters only later in the cell", () => {
+  expect(cell(order({ tags: '["a=b"]' }), "Tags")).toBe("a=b");
+});
+
+it("BE-5 CSV export : 1. leaves numeric and generated columns without the prefix", () => {
+  expect(cell(order({ totalPriceMinor: -1199n }), "Total price")).toBe(
+    "-11.99",
+  );
+});
+
 it("BE-5 CSV export : 2. outputs Order id as the number in the GID", () => {
   expect(cell(order(), "Order id")).toBe("6663058751643");
 });
