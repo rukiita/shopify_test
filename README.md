@@ -2,8 +2,6 @@
 
 A Shopify app that captures orders through webhooks, lets merchants add and remove order tags, and exports orders to CSV.
 
-> Sections marked _(to be written)_ are filled in as the work progresses. Each one names the step and issue that completes it.
-
 ## Contents
 
 - [Features](#features)
@@ -17,11 +15,36 @@ A Shopify app that captures orders through webhooks, lets merchants add and remo
 
 ## Features
 
-_(to be written — Step 8, #9)_
+The app is embedded in the Shopify admin. Its home page is the order list.
+
+- **Order ingestion:** `orders/create` and `orders/updated` webhooks keep a copy of each order, its line items and their products in the app's database
+- **Import of existing orders:** **Sync orders** imports orders from the last 60 days that are not stored yet or have changed
+- **Order list:** orders newest first, 50 per page, with number, date, customer, email, total, payment gateway and tags
+- **Order tags:** merchants add a tag from the order's row and remove one with the button next to it. Tags are written to Shopify, so they also appear in the Shopify admin
+- **CSV export:** **Export CSV** downloads all of the shop's orders, one row per line item, including each product's title and tags. [`samples/orders.csv`](samples/orders.csv) is a sample
+- **Customer data:** the app handles Shopify's compliance webhooks and deletes a shop's data when the app is uninstalled (see [Customer data](#customer-data))
 
 ## Screenshots
 
-_(to be written — Step 8, #9)_
+### Order list
+
+_(screenshot to be added — #9)_
+<!-- ![Order list](docs/images/features/order-list.png) -->
+
+### Empty state
+
+_(screenshot to be added — #9)_
+<!-- ![Order list with no orders](docs/images/features/empty-state.png) -->
+
+### Tag editing
+
+_(screenshot to be added — #9)_
+<!-- ![Adding and removing an order tag](docs/images/features/tag-editing.png) -->
+
+### CSV download
+
+_(screenshot to be added — #9)_
+<!-- ![Downloading orders as a CSV file](docs/images/features/csv-download.png) -->
 
 ## Installation and configuration
 
