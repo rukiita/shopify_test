@@ -215,20 +215,28 @@ it("BE-3 Add tag : 1. rejects an empty tag without calling tagsAdd", async () =>
   expect(JSON.parse((await storedOrder()).tags)).toEqual(["wholesale"]);
 });
 
-it("BE-3 Add tag : 1. a tag at exactly the maximum length reaches tagsAdd, and one over it does not", async () => {
+it("BE-3 Add tag : 1. a tag at exactly the maximum length reaches tagsAdd", async () => {
+  await createOrder();
+  const requests = mockStore(tagsAdded);
+
+  expect(await addTag("x".repeat(55))).toEqual({ ok: true });
+
+  expect(requests[0].query).toContain("tagsAdd(");
+  expect(requests[0].variables).toEqual({
+    id: ORDER_ID,
+    tags: ["x".repeat(55)],
+  });
+});
+
+it("BE-3 Add tag : 1. rejects a tag over the maximum length without calling tagsAdd", async () => {
   await createOrder();
   const requests = mockStore(tagsAdded);
 
   expect(await addTag("x".repeat(56))).toEqual({
     error: "A tag can have at most 55 characters",
   });
-  expect(requests).toEqual([]);
 
-  expect(await addTag("x".repeat(55))).toEqual({ ok: true });
-  expect(requests[0].variables).toEqual({
-    id: ORDER_ID,
-    tags: ["x".repeat(55)],
-  });
+  expect(requests).toEqual([]);
 });
 
 it("BE-3 Add tag : 1. adds a tag that only the stored copy still has", async () => {
