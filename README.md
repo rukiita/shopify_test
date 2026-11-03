@@ -55,7 +55,7 @@ Shopify admin labels are given as they appear in English. If a screen has change
 - Node.js **24.22.1** (pinned in `.nvmrc`; with nvm, run `nvm use`). The app also declares `>=22.12` in `package.json`, and `.npmrc` makes `npm` refuse older versions, but 24.22.1 is the version it was built and tested with
 - A Shopify Partner account with an organization ([partners.shopify.com](https://partners.shopify.com)). Without an organization, Shopify CLI stops with "No Organization found"
 
-Shopify CLI is a project dependency (`@shopify/cli` in `devDependencies`), so no global install is needed. Run it through the npm scripts or `npx shopify`.
+Shopify CLI is a project dependency (`@shopify/cli` in `dependencies`), so no global install is needed. Run it through the npm scripts or `npx shopify`.
 
 ### 1. Install dependencies and connect your own app
 
@@ -65,11 +65,15 @@ npm ci                # install exactly the versions in package-lock.json
 npm run config:link   # create or select an app in your own organization
 ```
 
-`shopify.app.toml` contains the author's `client_id`. `config:link` replaces it with an app in your organization. See [Manage app config files](https://shopify.dev/docs/apps/build/cli-for-apps/manage-app-config-files).
+`shopify.app.toml` contains the author's `client_id`. Because that file exists, `config:link` asks for a configuration name and creates `shopify.app.{name}.toml` for your app, which becomes the default for `npm run dev`. See [Manage app config files](https://shopify.dev/docs/apps/build/cli-for-apps/manage-app-config-files).
+
+The new file is filled from your app in Shopify, so it may not have this app's scopes and webhook subscriptions. Copy the `[access_scopes]` and `[webhooks]` sections from `shopify.app.toml` into it, replacing any that are already there.
 
 ### 2. Choose the distribution method
 
-In the Partner Dashboard, open your app and choose **Public** distribution. Shopify requires a distribution method before protected customer data can be requested. The choice cannot be changed later. The app does not need to be listed on the App Store. See [Select a distribution method](https://shopify.dev/docs/apps/launch/distribution/select-distribution-method).
+Open your app in the Dev Dashboard and, on its Home, use the **Distribution** card to select **Public** distribution. Shopify requires a distribution method before protected customer data can be requested. See [Select a distribution method](https://shopify.dev/docs/apps/launch/distribution/select-distribution-method).
+
+**Read this before you confirm, because the choice cannot be changed later.** Shopify's documentation says that public distribution also requires registering for the Shopify App Store, which has a one-time fee ([About app distribution](https://shopify.dev/docs/apps/launch/distribution)). It does not say whether this applies to an app used only on development stores. This app is not listed on the App Store, and runs with public distribution on a development store (#19).
 
 _(screenshot to be added — #11)_
 <!-- ![Choosing Public distribution](docs/images/setup/distribution.png) -->
@@ -93,19 +97,19 @@ npm run dev
 
 When asked, create a new development store (any plan works; **Basic** is recommended, and **demo data** gives you products and orders to start with), then open the preview URL and install the app. See [Scaffold an app](https://shopify.dev/docs/apps/build/scaffold-app) (steps 3 and 4) and [Test apps locally](https://shopify.dev/docs/apps/build/cli-for-apps/test-apps-locally).
 
-Scopes (`read_customers`, `read_orders`, `read_products`, `write_orders`) and webhook subscriptions are declared in `shopify.app.toml` and applied by `npm run dev`; no manual setup is needed.
+`npm run dev` applies the scopes (`read_customers`, `read_orders`, `read_products`, `write_orders`) and webhook subscriptions from the sections you copied in step 1; no other setup is needed.
 
 The database needs no setup either. `npm run dev` runs `prisma generate` and `prisma migrate deploy` (`shopify.web.toml`), which create `prisma/dev.sqlite` on the first run and apply new migrations after that. No `.env` file is needed.
 
 ### 5. Place a test order
 
-Development stores use Shopify's Test payment gateway by default. It is also called the Bogus Gateway, and orders paid with it list the gateway as `bogus`. See [Shopify's Test payment gateway](https://help.shopify.com/en/manual/checkout-settings/test-orders/payments-test-mode).
+A store created with **demo data** has Shopify's test payment gateway enabled ([Generated test data](https://shopify.dev/docs/apps/build/stores/generated-test-data), which calls it the Bogus payment gateway). Orders paid with it list the gateway as `bogus`. If it is not offered at checkout, activate it under **Settings** → **Payments** ([Shopify's Test payment gateway](https://help.shopify.com/en/manual/checkout-settings/test-orders/payments-test-mode)).
 
 1. Open the online store from the Shopify admin (**Sales channels** → **Online Store** → eye icon). The storefront password is under **Online Store** → **Preferences** ([Dev stores](https://shopify.dev/docs/storefronts/themes/tools/development-stores))
 2. Add products to the cart and check out with test data, e.g. email `test.buyer+1@example.com`, a US address
 3. Pay with card number `1`, any future expiry date, any 3-digit security code, and name on card `Test payment gateway`
 
-The `orders/create` webhook stores the order while `npm run dev` is running, and it appears in the order list on the app home. Editing the order in the Shopify admin (for example, adding a tag) sends `orders/updated`, which updates the stored copy. To look at the stored rows, open the development database with `npx prisma studio` (tables `Order`, `LineItem`, `Product`).
+The `orders/create` webhook stores the order while `npm run dev` is running, and it appears in the order list on the app home after you reload the page. Editing the order in the Shopify admin (for example, adding a tag) sends `orders/updated`, which updates the stored copy. To look at the stored rows, open the development database with `npx prisma studio` (tables `Order`, `LineItem`, `Product`).
 
 ### 6. Import existing orders
 
@@ -121,7 +125,7 @@ npm run test:watch   # re-run on change
 npm run typecheck    # regenerates GraphQL types, then runs tsc
 ```
 
-The tests need no Partner account, store or `.env` file. Each run rebuilds a separate database, `prisma/test.sqlite`, from `prisma/migrations/`, so `prisma/dev.sqlite` is not touched. Shopify's Admin API is replaced with responses captured from a development store (`test/fixtures/`). More on how each layer is tested is in [CONTRIBUTING.md](CONTRIBUTING.md#running-the-tests).
+The tests need no Partner account, store or `.env` file. Each run rebuilds a separate database, `prisma/test.sqlite`, from `prisma/migrations/`, so `prisma/dev.sqlite` is not touched. Shopify's Admin API is replaced with responses captured from a development store (`test/fixtures/`). More on how each layer is tested is in [CONTRIBUTING.md](CONTRIBUTING.md#how-each-layer-is-tested).
 
 ## Database design
 
