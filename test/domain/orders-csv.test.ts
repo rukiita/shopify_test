@@ -251,6 +251,8 @@ it.each([
   [1500n, "JPY", "1500"],
   [1234n, "KWD", "1.234"],
   [5n, "USD", "0.05"],
+  [0n, "USD", "0.00"],
+  [0n, "JPY", "0"],
   [123456789012345678901n, "USD", "1234567890123456789.01"],
 ])(
   "BE-5 CSV export : 4. outputs Total price as a plain decimal (%s %s)",

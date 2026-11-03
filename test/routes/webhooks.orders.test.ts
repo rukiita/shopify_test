@@ -305,3 +305,25 @@ it("BE-1 Webhook ingestion : 1. the order query asks for up to 250 line items", 
   // A mocked response has the line items it was given, whatever the query asked for.
   expect(requests[0].query).toContain("lineItems(first: 250)");
 });
+
+it("BE-1 Webhook ingestion : 1. stores an order with a total of 0 for a signed orders/create webhook", async () => {
+  const order = fixtureOrder(fixtures.regular);
+  mockAdminGraphql(SHOP, {
+    data: {
+      order: {
+        ...order,
+        paymentGatewayNames: [],
+        currentTotalPriceSet: {
+          shopMoney: { ...order.currentTotalPriceSet.shopMoney, amount: "0.0" },
+        },
+      },
+    },
+  });
+
+  const response = await orders(orderWebhook("orders/create", ORDER_ID));
+
+  expect(response.status).toBe(200);
+  const stored = await db.order.findUniqueOrThrow({ where: { id: ORDER_ID } });
+  expect(stored.totalPriceMinor).toBe(0n);
+  expect(stored.paymentGateways).toBe("[]");
+});

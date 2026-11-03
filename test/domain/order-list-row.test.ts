@@ -31,6 +31,12 @@ it("BE-2 Order list : 1. a row has no bigint and survives JSON.stringify", () =>
   });
 });
 
+it("BE-2 Order list : 1. a total of 0 is shown as an amount", () => {
+  expect(toOrderListRow({ ...stored, totalPriceMinor: 0n }).total).toBe(
+    "$0.00",
+  );
+});
+
 it("BE-2 Order list : 1. shows the created time in the given time zone", () => {
   const createdAt = "2026-11-01T20:17:27.000Z";
 

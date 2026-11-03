@@ -14,6 +14,13 @@ it("BE-1 Webhook ingestion : 1. converts the total to minor units without floati
   expect(() => toMinorUnits("1.234", "USD")).toThrow();
 });
 
+it("BE-1 Webhook ingestion : 1. converts a total of 0 to 0 minor units", () => {
+  expect(toMinorUnits("0", "USD")).toBe(0n);
+  expect(toMinorUnits("0.0", "USD")).toBe(0n);
+  expect(toMinorUnits("0.00", "USD")).toBe(0n);
+  expect(toMinorUnits("0.0", "JPY")).toBe(0n);
+});
+
 it("BE-2 Order list : 1. formats a total from minor units without floating point", () => {
   expect(formatMoney(1199n, "USD")).toBe("$11.99");
   expect(formatMoney(100n, "USD")).toBe("$1.00");
