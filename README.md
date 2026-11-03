@@ -219,7 +219,6 @@ To check the routes by hand, run the app (`npm run dev`) and send Shopify's samp
 ## Interpretation of the task
 
 The task leaves some details open. These are the readings this app follows (decided in #18).
-The app uses public distribution, so any store can install it. It is not listed on the Shopify App Store.
 
 ### CSV rows: one row per line item
 
@@ -301,20 +300,42 @@ After a tag edit, the app refetches the order and stores it whole, the same way 
 
 ## Implementation choices
 
-Design decisions are recorded as Architecture Decision Records in [docs/adr/](docs/adr/README.md).
+Design decisions are recorded as Architecture Decision Records in [docs/adr/](docs/adr/README.md). Each ADR holds the options considered and the full reasoning. This table is a summary.
 
-_(summary to be written — Step 8, #12)_
+| ADR | Decision | Why |
+|---|---|---|
+| [0001](docs/adr/0001-react-router-template.md) | Build on the React Router v7 app template | The task says Remix. React Router v7 is its successor and Shopify's current template, while the Remix package gets only critical security fixes |
+| [0002](docs/adr/0002-polaris-web-components.md) | Build the UI with Polaris Web Components | Polaris React receives no more updates, and the template already uses Web Components |
+| [0003](docs/adr/0003-refetch-order-via-graphql.md) | Use webhooks as triggers and refetch each order via GraphQL | The webhook payload has no product tags, so a fetch is needed anyway. Refetching the whole order leaves one data source and one mapping |
+| [0004](docs/adr/0004-sync-tags-to-shopify.md) | Write order tags to Shopify, not only to the app's database | Shopify owns the data. A tag stored only in the app would disappear on the next refetch of the order |
+| [0005](docs/adr/0005-process-webhooks-synchronously.md) | Process webhooks within the request, not from a queue | One delivery takes about 0.5 s against Shopify's 5-second limit, and reviewers can run the app without a worker or Redis. Production would use a queue |
+| [0006](docs/adr/0006-tdd.md) | Develop with TDD and merge pull requests with merge commits | The core logic is easy to test first, and the commits show how the work was done. The UI has only thin tests, and Shopify configuration is checked by hand |
 
 ## Development process
 
-This repository is developed issue-first with TDD. See [CONTRIBUTING.md](CONTRIBUTING.md) and [docs/requirements.md](docs/requirements.md).
+Requirements, their issues and the test naming are in [docs/requirements.md](docs/requirements.md). The rules are in three documents:
 
-_(to be expanded — Step 8)_
+- **Issue-first TDD ([CONTRIBUTING.md](CONTRIBUTING.md)):** a change starts from an issue with a test list. It is built test-first on its own branch and reaches `main` through a pull request that records what was run, the risks and how to roll back
+- **Code review ([REVIEW.md](REVIEW.md)):** a pull request is reviewed by an agent that did not write the code, with one fix-and-verify round. Merging is the author's decision
+- **Security review ([SECURITY_REVIEW.md](SECURITY_REVIEW.md)):** required when a pull request touches authentication, webhooks, customer data, Shopify writes, scopes, exports or dependencies
+
+### Reading the commit history
+
+Pull requests are merged with merge commits, and squash and rebase merges are disabled, so the commits of each change stay in the history.
+
+```bash
+git log --first-parent --oneline main                       # one merge per pull request, after the first setup commits
+git log --no-merges --oneline --reverse --grep='(#3)' main  # the commits of one issue, oldest first
+```
+
+Within an issue, a `test:` commit adds a failing test, a `feat:` or `fix:` commit makes it pass, and a `refactor:` commit cleans up. A `test:` commit is red by design, so only the merge commits on `main` are expected to pass. Each message ends with its issue number.
+Commits that do not follow this pattern are listed in [PR #90](https://github.com/rukiita/shopify_test/pull/90) under "Commit history".
 
 ## Known limitations / Production considerations
 
-_(to be completed — Step 8, #12)_
-
+- The app has not been submitted to the Shopify App Store. The compliance webhooks that Shopify requires are implemented (see [Customer data](#customer-data)), but step 2 of the protected customer data request (data protection details) and App Store review are not done
+- The repository has no Dockerfile or other deployment configuration. The app runs locally with `npm run dev`
+- There is no CI: the repository has no GitHub Actions workflows, so tests, code reviews and security reviews run locally
 - `read_customers` was added after the first install (#1). A store installed before that has it only once the merchant opens the app and approves the new scope. Until then the order query is denied, and order webhooks for that store fail and are retried
 - The CSV export reads all of a shop's orders and builds the file in memory within one request, which has not been measured on a large store. The read shares the one SQLite connection, and building the file holds the Node process, so order webhooks for every shop wait meanwhile and can pass Shopify's 5-second limit, which leaves them to Shopify's retries. For large stores, stream the rows or build the file in a background job (#5)
 - The CSV has no currency column. *Total price* is in the currency the shop had when the order was last ingested, so the column can mix currencies after a shop changes its currency (#5)
