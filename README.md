@@ -71,12 +71,11 @@ The new file is filled from your app in Shopify, so it may not have this app's s
 
 ### 2. Choose the distribution method
 
-Open your app in the Dev Dashboard and, on its Home, use the **Distribution** card to select **Public** distribution. Shopify requires a distribution method before protected customer data can be requested. See [Select a distribution method](https://shopify.dev/docs/apps/launch/distribution/select-distribution-method).
+Open your app in the Dev Dashboard and, on its Home, use the **Distribution** card. It opens the app's **Distribution** page in the Partner Dashboard. Choose **Public distribution**, click **Select**, then confirm with **Select public distribution**. Shopify requires a distribution method before protected customer data can be requested. See [Select a distribution method](https://shopify.dev/docs/apps/launch/distribution/select-distribution-method).
 
-**Read this before you confirm, because the choice cannot be changed later.** Shopify's documentation says that public distribution also requires registering for the Shopify App Store, which has a one-time fee ([About app distribution](https://shopify.dev/docs/apps/launch/distribution)). It does not say whether this applies to an app used only on development stores. This app is not listed on the App Store, and runs with public distribution on a development store (#19).
+The choice cannot be changed later. Shopify's documentation says that public distribution also requires registering for the Shopify App Store, which has a one-time fee ([About app distribution](https://shopify.dev/docs/apps/launch/distribution)). This app needs no listing, and neither selecting public distribution nor running the app on a development store asked for the registration or the fee, on an account that has never paid it (#91).
 
-_(screenshot to be added — #11)_
-<!-- ![Choosing Public distribution](docs/images/setup/distribution.png) -->
+![The Distribution page in the Partner Dashboard, confirming public distribution](docs/images/setup/distribution.png)
 
 ### 3. Allow access to protected customer data
 
@@ -86,8 +85,7 @@ Order webhooks and the CSV export need customer names, emails and addresses. See
 2. Select **Protected customer data**, and the fields **Name**, **Email** and **Address**, with the reason "App functionality"
 3. Save. Step 2 (data protection details) is only needed for App Store review, not for development stores
 
-_(screenshot to be added — #11)_
-<!-- ![Protected customer data access](docs/images/setup/protected-customer-data.png) -->
+![Protected customer data access in the Partner Dashboard, with Name, Email and Address selected](docs/images/setup/protected-customer-data.png)
 
 ### 4. Run the app on a development store
 
