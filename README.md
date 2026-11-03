@@ -28,23 +28,19 @@ The app is embedded in the Shopify admin. Its home page is the order list.
 
 ### Order list
 
-_(screenshot to be added — #9)_
-<!-- ![Order list](docs/images/features/order-list.png) -->
+![The order list, with buttons to sync orders and export a CSV file](docs/images/features/order-list.png)
 
 ### Empty state
 
-_(screenshot to be added — #9)_
-<!-- ![Order list with no orders](docs/images/features/empty-state.png) -->
+![The order list with no orders yet, and the button to sync orders](docs/images/features/empty-state.png)
 
 ### Tag editing
 
-_(screenshot to be added — #9)_
-<!-- ![Adding and removing an order tag](docs/images/features/tag-editing.png) -->
+![An order with a tag and its remove button, and the field for adding a tag](docs/images/features/tag-editing.png)
 
 ### CSV download
 
-_(screenshot to be added — #9)_
-<!-- ![Downloading orders as a CSV file](docs/images/features/csv-download.png) -->
+![The exported CSV file open in a spreadsheet](docs/images/features/csv-download.png)
 
 ## Installation and configuration
 
