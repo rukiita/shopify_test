@@ -8,8 +8,9 @@ export const action = async ({ request }: ActionFunctionArgs) => {
   console.log(`Received ${topic} webhook for ${shop}`);
 
   // Webhook requests can trigger multiple times and after an app has already been uninstalled.
-  // Everything is deleted by shop, so a repeated delivery is harmless, and it runs even when
-  // an earlier delivery already deleted the sessions.
+  // Everything is deleted by shop, so repeating the current uninstall is harmless, and it runs
+  // even when an earlier delivery already deleted the sessions. A retry that arrives after a
+  // reinstall deletes the new install's data too (README, "Known limitations", #74).
   await deleteShopData(shop);
 
   return new Response();
