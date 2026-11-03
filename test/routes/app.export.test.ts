@@ -9,6 +9,7 @@ import {
   fixtureOrder,
   fixtures,
   orderWithLineItems,
+  refundedOrder,
 } from "../helpers/order-fixtures";
 import { createOfflineSession } from "../helpers/session";
 import { adminRequest, sessionToken } from "../helpers/session-token";
@@ -103,4 +104,16 @@ it("BE-5 CSV export : 1. the loader writes a row for each of an order's 51 line 
   expect(titles.sort()).toEqual(
     Array.from({ length: 51 }, (_, index) => `Product ${index + 1}`).sort(),
   );
+});
+
+it("BE-5 CSV export : 4. the loader writes a fully refunded order as one row with a total of 0 and empty product columns", async () => {
+  await saveOrder(mapOrder(SHOP, refundedOrder(fixtures.regular)));
+
+  const response = await load(
+    adminRequest("/app/export", sessionToken(SHOP), "GET"),
+  );
+
+  const [, ...rows] = csvLines(await response.text());
+  expect(rows).toHaveLength(1);
+  expect(rows[0]).toMatch(/^6663058751643,1006,0\.00,bogus,.*,,$/);
 });

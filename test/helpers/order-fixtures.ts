@@ -60,6 +60,24 @@ export function orderWithLineItems(fixture: OrderQueryResponse, count: number) {
   };
 }
 
+// The order inside a fixture after a full refund: a total of 0 and no quantity left.
+// Not captured from the development store: only these values differ from the fixture.
+export function refundedOrder(fixture: OrderQueryResponse) {
+  const order = fixtureOrder(fixture);
+  return {
+    ...order,
+    currentTotalPriceSet: {
+      shopMoney: { ...order.currentTotalPriceSet.shopMoney, amount: "0.0" },
+    },
+    lineItems: {
+      nodes: order.lineItems.nodes.map((lineItem) => ({
+        ...lineItem,
+        currentQuantity: 0,
+      })),
+    },
+  };
+}
+
 // Two pages of ORDER_IDS_QUERY captured from the development store: the orders of
 // productChanged and noCustomer, then the order of productNull. Captured with
 // `first: 2` and a filter on those three IDs, so that the store's other orders do

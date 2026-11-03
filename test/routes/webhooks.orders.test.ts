@@ -6,6 +6,7 @@ import {
   fixtureOrder,
   fixtures,
   orderWithLineItems,
+  refundedOrder,
 } from "../helpers/order-fixtures";
 import { mockAdminGraphql, resetAdminGraphql } from "../helpers/admin-graphql";
 import { resetDatabase } from "../helpers/database";
@@ -309,7 +310,6 @@ it("BE-1 Webhook ingestion : 1. stores an order with a total of 0 for a signed o
     data: {
       order: {
         ...order,
-        paymentGatewayNames: [],
         currentTotalPriceSet: {
           shopMoney: { ...order.currentTotalPriceSet.shopMoney, amount: "0.0" },
         },
@@ -322,5 +322,28 @@ it("BE-1 Webhook ingestion : 1. stores an order with a total of 0 for a signed o
   expect(response.status).toBe(200);
   const stored = await db.order.findUniqueOrThrow({ where: { id: ORDER_ID } });
   expect(stored.totalPriceMinor).toBe(0n);
-  expect(stored.paymentGateways).toBe("[]");
+});
+
+it("BE-1 Webhook ingestion : 2. a full refund updates the stored order to a total of 0 and no quantity", async () => {
+  mockAdminGraphql(SHOP, fixtures.regular);
+  await orders(orderWebhook("orders/create", ORDER_ID));
+  mockAdminGraphql(SHOP, {
+    data: {
+      order: {
+        ...refundedOrder(fixtures.regular),
+        updatedAt: "2026-11-02T00:00:00Z",
+      },
+    },
+  });
+
+  const response = await orders(orderWebhook("orders/updated", ORDER_ID));
+
+  expect(response.status).toBe(200);
+  const stored = await db.order.findUniqueOrThrow({
+    where: { id: ORDER_ID },
+    include: { lineItems: true },
+  });
+  expect(stored.totalPriceMinor).toBe(0n);
+  expect(stored.paymentGateways).toBe(JSON.stringify(["bogus"]));
+  expect(stored.lineItems.map((lineItem) => lineItem.quantity)).toEqual([0, 0]);
 });
