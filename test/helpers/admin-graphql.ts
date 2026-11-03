@@ -11,11 +11,11 @@ interface GraphqlRequestBody {
 // `fetch` when it is imported, so `vi.stubGlobal("fetch")` would not reach it.
 //
 // Every Admin GraphQL request to `shop` gets `response` (a fixture), or what
-// `response` returns (or resolves to) for the request's variables when it is a
-// function. A `Response` is sent as it is, to give an HTTP status other than 200.
+// `response` returns (or resolves to) for the request's variables and query when it is
+// a function. A `Response` is sent as it is, to give an HTTP status other than 200.
 // Any other request throws. Returns the bodies sent, so a test can check the
 // variables.
-type Responder = (variables: Record<string, unknown>) => unknown;
+type Responder = (variables: Record<string, unknown>, query: string) => unknown;
 
 export function mockAdminGraphql(shop: string, response: object | Responder) {
   const endpoint = `https://${shop}/admin/api/${apiVersion}/graphql.json`;
@@ -30,7 +30,7 @@ export function mockAdminGraphql(shop: string, response: object | Responder) {
     requests.push(body);
     const responseBody =
       typeof response === "function"
-        ? await (response as Responder)(body.variables ?? {})
+        ? await (response as Responder)(body.variables ?? {}, body.query)
         : response;
     if (responseBody instanceof Response) {
       return responseBody;

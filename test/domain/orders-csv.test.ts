@@ -3,6 +3,7 @@ import {
   buildOrdersCsv,
   type StoredExportOrder,
 } from "../../app/lib/domain/orders-csv";
+import { csvLines } from "../helpers/csv";
 
 const COLUMNS = [
   "Order id",
@@ -44,12 +45,9 @@ const order = (
   ...overrides,
 });
 
-// The lines of the file after the BOM, without the empty string after the last CRLF.
-const lines = (csv: string) => csv.slice(1).split("\r\n").slice(0, -1);
-
 // The raw text of the first data row, for tests of escaping.
 const firstRow = (input: StoredExportOrder) =>
-  lines(buildOrdersCsv([input]))[1];
+  csvLines(buildOrdersCsv([input]))[1];
 
 // The value of a column in the first data row. Only for values that need no quoting
 // and have no comma: the escaping has its own tests.
@@ -57,7 +55,7 @@ const cell = (input: StoredExportOrder, column: string) =>
   firstRow(input).split(",")[COLUMNS.indexOf(column)];
 
 it("BE-5 CSV export : 1. writes the header row in CSV template order", () => {
-  expect(lines(buildOrdersCsv([]))).toEqual([COLUMNS.join(",")]);
+  expect(csvLines(buildOrdersCsv([]))).toEqual([COLUMNS.join(",")]);
 });
 
 it("BE-5 CSV export : 1. starts with a UTF-8 BOM and ends rows with CRLF", () => {
@@ -85,7 +83,7 @@ it("BE-5 CSV export : 1. escapes values containing commas, quotes and line break
 });
 
 it("BE-5 CSV export : 1. writes one row per line item and repeats the order columns", () => {
-  const rows = lines(
+  const rows = csvLines(
     buildOrdersCsv([
       order({
         lineItems: [
@@ -104,7 +102,7 @@ it("BE-5 CSV export : 1. writes one row per line item and repeats the order colu
 });
 
 it("BE-5 CSV export : 1. writes one row with empty product columns for an order without line items", () => {
-  const rows = lines(buildOrdersCsv([order({ lineItems: [] })])).slice(1);
+  const rows = csvLines(buildOrdersCsv([order({ lineItems: [] })])).slice(1);
 
   expect(rows).toHaveLength(1);
   expect(rows[0].split(",")[0]).toBe("6663058751643");
@@ -112,7 +110,7 @@ it("BE-5 CSV export : 1. writes one row with empty product columns for an order 
 });
 
 it("BE-5 CSV export : 1. leaves out a line item with quantity 0", () => {
-  const rows = lines(
+  const rows = csvLines(
     buildOrdersCsv([
       order({
         lineItems: [
@@ -128,7 +126,7 @@ it("BE-5 CSV export : 1. leaves out a line item with quantity 0", () => {
 });
 
 it("BE-5 CSV export : 1. writes one row with empty product columns for an order whose line items all have quantity 0", () => {
-  const rows = lines(
+  const rows = csvLines(
     buildOrdersCsv([order({ lineItems: [lineItem({ quantity: 0 })] })]),
   ).slice(1);
 
@@ -251,6 +249,8 @@ it.each([
   [1500n, "JPY", "1500"],
   [1234n, "KWD", "1.234"],
   [5n, "USD", "0.05"],
+  [0n, "USD", "0.00"],
+  [0n, "JPY", "0"],
   [123456789012345678901n, "USD", "1234567890123456789.01"],
 ])(
   "BE-5 CSV export : 4. outputs Total price as a plain decimal (%s %s)",

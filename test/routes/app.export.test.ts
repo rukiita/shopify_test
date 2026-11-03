@@ -3,8 +3,13 @@ import { beforeEach, expect, it } from "vitest";
 import { mapOrder } from "../../app/lib/domain/order-mapper";
 import { saveOrder } from "../../app/lib/repositories/order-repository.server";
 import { loader } from "../../app/routes/app.export";
+import { csvLines } from "../helpers/csv";
 import { resetDatabase } from "../helpers/database";
-import { fixtureOrder, fixtures } from "../helpers/order-fixtures";
+import {
+  fixtureOrder,
+  fixtures,
+  orderWithLineItems,
+} from "../helpers/order-fixtures";
 import { createOfflineSession } from "../helpers/session";
 import { adminRequest, sessionToken } from "../helpers/session-token";
 
@@ -84,4 +89,30 @@ it("BE-5 CSV export : 1. the loader's file has no formula at the start of a part
     const parts = (await response.text()).split(/[;\r\n]+/);
     expect(parts.filter((part) => /^"*[=+\-@]/.test(part))).toEqual([]);
   }
+});
+
+it("BE-5 CSV export : 1. the loader writes a row for each of an order's 51 line items", async () => {
+  await saveOrder(mapOrder(SHOP, orderWithLineItems(fixtures.regular, 51)));
+
+  const response = await load(
+    adminRequest("/app/export", sessionToken(SHOP), "GET"),
+  );
+
+  const [, ...rows] = csvLines(await response.text());
+  const titles = rows.map((row) => /,(Product \d+),/.exec(row)?.[1]);
+  expect(titles.sort()).toEqual(
+    Array.from({ length: 51 }, (_, index) => `Product ${index + 1}`).sort(),
+  );
+});
+
+it("BE-5 CSV export : 4. the loader writes a fully refunded order as one row with a total of 0 and empty product columns", async () => {
+  await saveOrder(mapOrder(SHOP, fixtureOrder(fixtures.refunded)));
+
+  const response = await load(
+    adminRequest("/app/export", sessionToken(SHOP), "GET"),
+  );
+
+  const [, ...rows] = csvLines(await response.text());
+  expect(rows).toHaveLength(1);
+  expect(rows[0]).toMatch(/^6667485380763,1056,0\.00,bogus,.*,,$/);
 });

@@ -80,3 +80,11 @@ it("BE-2 Order list : 1. the loader reads the page from the cursor in the URL", 
   expect(await list(`after=${encodeURIComponent(newer)}`)).toEqual(["#1002"]);
   expect(await list(`before=${encodeURIComponent(older)}`)).toEqual(["#1006"]);
 });
+
+it("BE-2 Order list : 1. the loader returns a total of 0 as an amount", async () => {
+  await saveOrder(mapOrder(SHOP, fixtureOrder(fixtures.refunded)));
+
+  const result = await load(adminRequest("/app", sessionToken(SHOP), "GET"));
+
+  expect(result?.orders.map((order) => order.total)).toEqual(["$0.00"]);
+});

@@ -8,6 +8,7 @@ import orderIdsPage2 from "../fixtures/order-ids-page-2.json";
 import noCustomerOrder from "../fixtures/order-no-customer.json";
 import productChangedOrder from "../fixtures/order-product-changed.json";
 import productNullOrder from "../fixtures/order-product-null.json";
+import refundedOrder from "../fixtures/order-refunded.json";
 import regularOrder from "../fixtures/order-regular.json";
 
 export interface OrderQueryResponse {
@@ -26,12 +27,40 @@ export const fixtures = {
   // Captured after one product was renamed and retagged and the other deleted.
   productChanged: response(productChangedOrder),
   deleted: response(deletedOrder),
+  // Captured after a full refund, including shipping.
+  refunded: response(refundedOrder),
 };
 
 // The order inside a fixture that has one.
 export function fixtureOrder(fixture: OrderQueryResponse) {
   if (!fixture.data.order) throw new Error("This fixture has no order");
   return fixture.data.order;
+}
+
+// The order inside a fixture, with this many copies of its first line item, each with
+// its own title and product. The development store has no order this large to capture.
+export function orderWithLineItems(fixture: OrderQueryResponse, count: number) {
+  const order = fixtureOrder(fixture);
+  const [lineItem] = order.lineItems.nodes;
+  if (!lineItem?.product) {
+    throw new Error("This fixture's first line item has no product");
+  }
+  const { product } = lineItem;
+  return {
+    ...order,
+    lineItems: {
+      nodes: Array.from({ length: count }, (_, index) => ({
+        ...lineItem,
+        id: `gid://shopify/LineItem/${index + 1}`,
+        title: `Title at purchase ${index + 1}`,
+        product: {
+          ...product,
+          id: `gid://shopify/Product/${index + 1}`,
+          title: `Product ${index + 1}`,
+        },
+      })),
+    },
+  };
 }
 
 // Two pages of ORDER_IDS_QUERY captured from the development store: the orders of

@@ -2,7 +2,11 @@ import type { ActionFunctionArgs } from "react-router";
 import { afterEach, beforeEach, expect, it } from "vitest";
 import db from "../../app/db.server";
 import { action } from "../../app/routes/webhooks.orders";
-import { fixtureOrder, fixtures } from "../helpers/order-fixtures";
+import {
+  fixtureOrder,
+  fixtures,
+  orderWithLineItems,
+} from "../helpers/order-fixtures";
 import { mockAdminGraphql, resetAdminGraphql } from "../helpers/admin-graphql";
 import { resetDatabase } from "../helpers/database";
 import { createOfflineSession } from "../helpers/session";
@@ -275,4 +279,67 @@ it("BE-1 Webhook ingestion : 1. stores every order when several signed orders/cr
   ).toEqual([...orderIds].sort());
   expect(await db.lineItem.count()).toBe(ORDER_COUNT * 2);
   expect(await db.product.count()).toBe(2);
+});
+
+it.each([51, 250])(
+  "BE-1 Webhook ingestion : 1. stores all %i line items of an order for a signed orders/create webhook",
+  async (count) => {
+    const order = orderWithLineItems(fixtures.regular, count);
+    // Only as many line items as the query asks for, as Shopify would answer.
+    mockAdminGraphql(SHOP, (_variables, query) => {
+      const first = /lineItems\(first: (\d+)/.exec(query)?.[1];
+      if (!first) throw new Error("The query does not page its line items");
+      const nodes = order.lineItems.nodes.slice(0, Number(first));
+      return { data: { order: { ...order, lineItems: { nodes } } } };
+    });
+
+    const response = await orders(orderWebhook("orders/create", ORDER_ID));
+
+    expect(response.status).toBe(200);
+    expect(await db.lineItem.count({ where: { orderId: ORDER_ID } })).toBe(
+      count,
+    );
+    expect(await db.product.count({ where: { shop: SHOP } })).toBe(count);
+  },
+);
+
+it("BE-1 Webhook ingestion : 1. stores an order with a total of 0 for a signed orders/create webhook", async () => {
+  const order = fixtureOrder(fixtures.regular);
+  mockAdminGraphql(SHOP, {
+    data: {
+      order: {
+        ...order,
+        currentTotalPriceSet: {
+          shopMoney: { ...order.currentTotalPriceSet.shopMoney, amount: "0.0" },
+        },
+      },
+    },
+  });
+
+  const response = await orders(orderWebhook("orders/create", ORDER_ID));
+
+  expect(response.status).toBe(200);
+  const stored = await db.order.findUniqueOrThrow({ where: { id: ORDER_ID } });
+  expect(stored.totalPriceMinor).toBe(0n);
+});
+
+it("BE-1 Webhook ingestion : 2. a full refund updates the stored order to a total of 0 and no quantity", async () => {
+  const refunded = fixtureOrder(fixtures.refunded);
+  // The order as stored before the refund: a paid order, updated earlier.
+  mockAdminGraphql(SHOP, {
+    data: { order: { ...fixtureOrder(fixtures.regular), id: refunded.id } },
+  });
+  await orders(orderWebhook("orders/create", refunded.id));
+  mockAdminGraphql(SHOP, fixtures.refunded);
+
+  const response = await orders(orderWebhook("orders/updated", refunded.id));
+
+  expect(response.status).toBe(200);
+  const stored = await db.order.findUniqueOrThrow({
+    where: { id: refunded.id },
+    include: { lineItems: true },
+  });
+  expect(stored.totalPriceMinor).toBe(0n);
+  expect(stored.paymentGateways).toBe(JSON.stringify(["bogus"]));
+  expect(stored.lineItems.map((lineItem) => lineItem.quantity)).toEqual([0]);
 });

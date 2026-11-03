@@ -1,0 +1,55 @@
+{
+  "data": {
+    "order": {
+      "id": "gid://shopify/Order/6667485380763",
+      "name": "#1056",
+      "number": 1056,
+      "createdAt": "2026-11-03T02:36:03Z",
+      "updatedAt": "2026-11-03T02:37:18Z",
+      "email": "test.buyer+1@example.com",
+      "tags": [],
+      "paymentGatewayNames": ["bogus"],
+      "currentTotalPriceSet": {
+        "shopMoney": {
+          "amount": "0.0",
+          "currencyCode": "USD"
+        }
+      },
+      "customer": {
+        "firstName": "Test",
+        "lastName": "Buyer"
+      },
+      "shippingAddress": {
+        "formatted": [
+          "123 Test Street",
+          "Apt 4, Building B",
+          "San Francisco CA 94103",
+          "United States"
+        ]
+      },
+      "billingAddress": {
+        "formatted": [
+          "123 Test Street",
+          "Apt 4, Building B",
+          "San Francisco CA 94103",
+          "United States"
+        ]
+      },
+      "lineItems": {
+        "nodes": [
+          {
+            "id": "gid://shopify/LineItem/15137246281883",
+            "title": "The Complete Snowboard",
+            "currentQuantity": 0,
+            "product": {
+              "id": "gid://shopify/Product/9478544228507",
+              "title": "The Complete Snowboard",
+              "tags": ["Premium", "Snow", "Snowboard", "Sport", "Winter"],
+              "updatedAt": "2026-11-03T02:37:21Z"
+            }
+          }
+        ]
+      }
+    }
+  }
+}
