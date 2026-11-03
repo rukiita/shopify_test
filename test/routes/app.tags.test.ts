@@ -203,6 +203,34 @@ it("BE-3 Add tag : 1. rejects a tag the order already has without calling tagsAd
   expect(requests.filter((r) => isTagMutation(r.variables ?? {}))).toEqual([]);
 });
 
+it("BE-3 Add tag : 1. rejects an empty tag without calling tagsAdd", async () => {
+  await createOrder();
+  const requests = mockStore(tagsAdded);
+
+  for (const tag of ["", "   "]) {
+    expect(await addTag(tag)).toEqual({ error: "Enter a tag" });
+  }
+
+  expect(requests).toEqual([]);
+  expect(JSON.parse((await storedOrder()).tags)).toEqual(["wholesale"]);
+});
+
+it("BE-3 Add tag : 1. a tag at exactly the maximum length reaches tagsAdd, and one over it does not", async () => {
+  await createOrder();
+  const requests = mockStore(tagsAdded);
+
+  expect(await addTag("x".repeat(56))).toEqual({
+    error: "A tag can have at most 55 characters",
+  });
+  expect(requests).toEqual([]);
+
+  expect(await addTag("x".repeat(55))).toEqual({ ok: true });
+  expect(requests[0].variables).toEqual({
+    id: ORDER_ID,
+    tags: ["x".repeat(55)],
+  });
+});
+
 it("BE-3 Add tag : 1. adds a tag that only the stored copy still has", async () => {
   // Removed in the Shopify admin, and the webhook has not arrived.
   await createOrder({ tags: ["VIP"] });
