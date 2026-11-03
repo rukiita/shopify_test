@@ -308,7 +308,7 @@ Design decisions are recorded as Architecture Decision Records in [docs/adr/](do
 
 | ADR | Decision | Why |
 |---|---|---|
-| [0001](docs/adr/0001-react-router-template.md) | Build on the React Router v7 app template | The task says Remix. React Router v7 is its successor and Shopify's current template, while the Remix package gets only critical security fixes |
+| [0001](docs/adr/0001-react-router-template.md) | Build on the React Router v7 app template | The task prefers Node.js or Remix. React Router v7 is Remix's successor and Shopify's current template, while the Remix package gets only critical security fixes |
 | [0002](docs/adr/0002-polaris-web-components.md) | Build the UI with Polaris Web Components | Polaris React receives no more updates, and the template already uses Web Components |
 | [0003](docs/adr/0003-refetch-order-via-graphql.md) | Use webhooks as triggers and refetch each order via GraphQL | The webhook payload has no product tags, so a fetch is needed anyway. Refetching the whole order leaves one data source and one mapping |
 | [0004](docs/adr/0004-sync-tags-to-shopify.md) | Write order tags to Shopify, not only to the app's database | Shopify owns the data. A tag stored only in the app would disappear on the next refetch of the order |
@@ -332,8 +332,8 @@ git log --first-parent --oneline main                       # one merge per pull
 git log --no-merges --oneline --reverse --grep='(#3)' main  # the commits of one issue, oldest first
 ```
 
-Within an issue, a `test:` commit adds a failing test, a `feat:` or `fix:` commit makes it pass, and a `refactor:` commit cleans up. A `test:` commit is red by design, so only the merge commits on `main` are expected to pass. Each message ends with its issue number.
-Commits that do not follow this pattern are listed in [PR #90](https://github.com/rukiita/shopify_test/pull/90) under "Commit history".
+Within an issue, a `test:` commit adds a failing test, a `feat:` or `fix:` commit makes it pass, and a `refactor:` commit cleans up. Each message ends with its issue number. Tests can fail at commits inside a branch, so only the merge commits on `main` are expected to pass.
+Known exceptions are listed in [PR #90](https://github.com/rukiita/shopify_test/pull/90) under "Commit history". The setup commits before the first pull request, and the `test:` commits of #90 itself, which state existing behaviour, are also outside this pattern.
 
 ## Known limitations / Production considerations
 
