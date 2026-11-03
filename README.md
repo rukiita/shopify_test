@@ -25,7 +25,7 @@ _(to be written — Step 8, #9)_
 
 ## Installation and configuration
 
-> **Draft.** Written while setting up the author's environment (#19). It will be verified step by step in a fresh environment and finalised in Step 8 (#11). Shopify admin labels are given in English and will be checked against the English admin then.
+Shopify admin labels are given as they appear in English. If a screen has changed, the linked Shopify documentation has the current steps.
 
 ### Prerequisites
 
@@ -42,19 +42,25 @@ npm ci                # install exactly the versions in package-lock.json
 npm run config:link   # create or select an app in your own organization
 ```
 
-`shopify.app.toml` contains the author's `client_id`. `config:link` replaces it with an app in your organization.
+`shopify.app.toml` contains the author's `client_id`. `config:link` replaces it with an app in your organization. See [Manage app config files](https://shopify.dev/docs/apps/build/cli-for-apps/manage-app-config-files).
 
 ### 2. Choose the distribution method
 
-In the Partner Dashboard, open your app and choose **Public** distribution. Shopify requires a distribution method before protected customer data can be requested. The choice cannot be changed later. The app does not need to be listed on the App Store.
+In the Partner Dashboard, open your app and choose **Public** distribution. Shopify requires a distribution method before protected customer data can be requested. The choice cannot be changed later. The app does not need to be listed on the App Store. See [Select a distribution method](https://shopify.dev/docs/apps/launch/distribution/select-distribution-method).
+
+_(screenshot to be added — #11)_
+<!-- ![Choosing Public distribution](docs/images/setup/distribution.png) -->
 
 ### 3. Allow access to protected customer data
 
-Order webhooks and the CSV export need customer names, emails and addresses.
+Order webhooks and the CSV export need customer names, emails and addresses. See [Work with protected customer data](https://shopify.dev/docs/apps/launch/protected-customer-data).
 
 1. In the **Partner Dashboard** (not the Dev Dashboard), go to **Apps**, open your app from the list of Dev Dashboard apps, then **API access requests** → **Protected customer data access**
 2. Select **Protected customer data**, and the fields **Name**, **Email** and **Address**, with the reason "App functionality"
 3. Save. Step 2 (data protection details) is only needed for App Store review, not for development stores
+
+_(screenshot to be added — #11)_
+<!-- ![Protected customer data access](docs/images/setup/protected-customer-data.png) -->
 
 ### 4. Run the app on a development store
 
@@ -62,19 +68,21 @@ Order webhooks and the CSV export need customer names, emails and addresses.
 npm run dev
 ```
 
-When asked, create a new development store (any plan works; **Basic** is recommended, and **demo data** gives you products and orders to start with), then open the preview URL and install the app.
+When asked, create a new development store (any plan works; **Basic** is recommended, and **demo data** gives you products and orders to start with), then open the preview URL and install the app. See [Scaffold an app](https://shopify.dev/docs/apps/build/scaffold-app) (steps 3 and 4) and [Test apps locally](https://shopify.dev/docs/apps/build/cli-for-apps/test-apps-locally).
 
 Scopes (`read_customers`, `read_orders`, `read_products`, `write_orders`) and webhook subscriptions are declared in `shopify.app.toml` and applied by `npm run dev`; no manual setup is needed.
 
+The database needs no setup either. `npm run dev` runs `prisma generate` and `prisma migrate deploy` (`shopify.web.toml`), which create `prisma/dev.sqlite` on the first run and apply new migrations after that. No `.env` file is needed.
+
 ### 5. Place a test order
 
-Development stores use the Bogus Gateway for payments by default.
+Development stores use Shopify's Test payment gateway by default. It is also called the Bogus Gateway, and orders paid with it list the gateway as `bogus`. See [Shopify's Test payment gateway](https://help.shopify.com/en/manual/checkout-settings/test-orders/payments-test-mode).
 
-1. Open the online store from the Shopify admin (**Sales channels** → **Online Store** → eye icon). The storefront password is under **Online Store** → **Preferences**
+1. Open the online store from the Shopify admin (**Sales channels** → **Online Store** → eye icon). The storefront password is under **Online Store** → **Preferences** ([Dev stores](https://shopify.dev/docs/storefronts/themes/tools/development-stores))
 2. Add products to the cart and check out with test data, e.g. email `test.buyer+1@example.com`, a US address
-3. Pay with card number `1`, any future expiry date, any 3-digit security code, and name on card `Bogus Gateway`
+3. Pay with card number `1`, any future expiry date, any 3-digit security code, and name on card `Test payment gateway`
 
-The `orders/create` webhook stores the order while `npm run dev` is running. To see it, open the development database with `npx prisma studio` (tables `Order`, `LineItem`, `Product`). Editing the order in the Shopify admin (for example, adding a tag) sends `orders/updated`, which updates the stored copy.
+The `orders/create` webhook stores the order while `npm run dev` is running, and it appears in the order list on the app home. Editing the order in the Shopify admin (for example, adding a tag) sends `orders/updated`, which updates the stored copy. To look at the stored rows, open the development database with `npx prisma studio` (tables `Order`, `LineItem`, `Product`).
 
 ### 6. Import existing orders
 
@@ -82,7 +90,15 @@ Webhooks only report orders placed or changed after the app was installed. To im
 
 The app has `read_orders` without `read_all_orders`, so the Admin API lists only orders created in the last 60 days ([access scopes](https://shopify.dev/docs/api/usage/access-scopes)), and the sync imports only those. `read_all_orders` needs Shopify's approval for an app created under a Partner organization (#21).
 
-_(Database setup, running the tests, and the remaining steps are added in Step 8.)_
+### 7. Run the tests
+
+```bash
+npm test             # all tests once
+npm run test:watch   # re-run on change
+npm run typecheck    # regenerates GraphQL types, then runs tsc
+```
+
+The tests need no Partner account, store or `.env` file. Each run rebuilds a separate database, `prisma/test.sqlite`, from `prisma/migrations/`, so `prisma/dev.sqlite` is not touched. Shopify's Admin API is replaced with responses captured from a development store (`test/fixtures/`). More on how each layer is tested is in [CONTRIBUTING.md](CONTRIBUTING.md#running-the-tests).
 
 ## Database design
 
