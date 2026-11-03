@@ -8,6 +8,7 @@ import orderIdsPage2 from "../fixtures/order-ids-page-2.json";
 import noCustomerOrder from "../fixtures/order-no-customer.json";
 import productChangedOrder from "../fixtures/order-product-changed.json";
 import productNullOrder from "../fixtures/order-product-null.json";
+import refundedOrder from "../fixtures/order-refunded.json";
 import regularOrder from "../fixtures/order-regular.json";
 
 export interface OrderQueryResponse {
@@ -26,6 +27,8 @@ export const fixtures = {
   // Captured after one product was renamed and retagged and the other deleted.
   productChanged: response(productChangedOrder),
   deleted: response(deletedOrder),
+  // Captured after a full refund, including shipping.
+  refunded: response(refundedOrder),
 };
 
 // The order inside a fixture that has one.
@@ -55,24 +58,6 @@ export function orderWithLineItems(fixture: OrderQueryResponse, count: number) {
           id: `gid://shopify/Product/${index + 1}`,
           title: `Product ${index + 1}`,
         },
-      })),
-    },
-  };
-}
-
-// The order inside a fixture after a full refund: a total of 0 and no quantity left.
-// Not captured from the development store: only these values differ from the fixture.
-export function refundedOrder(fixture: OrderQueryResponse) {
-  const order = fixtureOrder(fixture);
-  return {
-    ...order,
-    currentTotalPriceSet: {
-      shopMoney: { ...order.currentTotalPriceSet.shopMoney, amount: "0.0" },
-    },
-    lineItems: {
-      nodes: order.lineItems.nodes.map((lineItem) => ({
-        ...lineItem,
-        currentQuantity: 0,
       })),
     },
   };

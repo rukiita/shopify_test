@@ -6,7 +6,6 @@ import {
   fixtureOrder,
   fixtures,
   orderWithLineItems,
-  refundedOrder,
 } from "../helpers/order-fixtures";
 import { mockAdminGraphql, resetAdminGraphql } from "../helpers/admin-graphql";
 import { resetDatabase } from "../helpers/database";
@@ -325,25 +324,22 @@ it("BE-1 Webhook ingestion : 1. stores an order with a total of 0 for a signed o
 });
 
 it("BE-1 Webhook ingestion : 2. a full refund updates the stored order to a total of 0 and no quantity", async () => {
-  mockAdminGraphql(SHOP, fixtures.regular);
-  await orders(orderWebhook("orders/create", ORDER_ID));
+  const refunded = fixtureOrder(fixtures.refunded);
+  // The order as stored before the refund: a paid order, updated earlier.
   mockAdminGraphql(SHOP, {
-    data: {
-      order: {
-        ...refundedOrder(fixtures.regular),
-        updatedAt: "2026-11-02T00:00:00Z",
-      },
-    },
+    data: { order: { ...fixtureOrder(fixtures.regular), id: refunded.id } },
   });
+  await orders(orderWebhook("orders/create", refunded.id));
+  mockAdminGraphql(SHOP, fixtures.refunded);
 
-  const response = await orders(orderWebhook("orders/updated", ORDER_ID));
+  const response = await orders(orderWebhook("orders/updated", refunded.id));
 
   expect(response.status).toBe(200);
   const stored = await db.order.findUniqueOrThrow({
-    where: { id: ORDER_ID },
+    where: { id: refunded.id },
     include: { lineItems: true },
   });
   expect(stored.totalPriceMinor).toBe(0n);
   expect(stored.paymentGateways).toBe(JSON.stringify(["bogus"]));
-  expect(stored.lineItems.map((lineItem) => lineItem.quantity)).toEqual([0, 0]);
+  expect(stored.lineItems.map((lineItem) => lineItem.quantity)).toEqual([0]);
 });
