@@ -67,7 +67,7 @@ npm run config:link   # create or select an app in your own organization
 
 `shopify.app.toml` contains the author's `client_id`. Because that file exists, `config:link` asks for a configuration name and creates `shopify.app.{name}.toml` for your app, which becomes the default for `npm run dev`. See [Manage app config files](https://shopify.dev/docs/apps/build/cli-for-apps/manage-app-config-files).
 
-The new file is filled from your app in Shopify, so it may not have this app's scopes and webhook subscriptions. Copy the `[access_scopes]` and `[webhooks]` sections from `shopify.app.toml` into it, replacing any that are already there.
+The new file is filled from your app in Shopify, so it does not have everything this app needs. For a newly created app, it has the scopes, but no webhook subscriptions and a different `api_version`. Copy the `[access_scopes]` and `[webhooks]` sections from `shopify.app.toml` into it, replacing the ones already there.
 
 ### 2. Choose the distribution method
 
