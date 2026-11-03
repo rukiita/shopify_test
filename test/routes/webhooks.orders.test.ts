@@ -2,7 +2,11 @@ import type { ActionFunctionArgs } from "react-router";
 import { afterEach, beforeEach, expect, it } from "vitest";
 import db from "../../app/db.server";
 import { action } from "../../app/routes/webhooks.orders";
-import { fixtureOrder, fixtures } from "../helpers/order-fixtures";
+import {
+  fixtureOrder,
+  fixtures,
+  orderWithLineItems,
+} from "../helpers/order-fixtures";
 import { mockAdminGraphql, resetAdminGraphql } from "../helpers/admin-graphql";
 import { resetDatabase } from "../helpers/database";
 import { createOfflineSession } from "../helpers/session";
@@ -275,4 +279,29 @@ it("BE-1 Webhook ingestion : 1. stores every order when several signed orders/cr
   ).toEqual([...orderIds].sort());
   expect(await db.lineItem.count()).toBe(ORDER_COUNT * 2);
   expect(await db.product.count()).toBe(2);
+});
+
+it.each([51, 250])(
+  "BE-1 Webhook ingestion : 1. stores all %i line items of an order for a signed orders/create webhook",
+  async (count) => {
+    mockAdminGraphql(SHOP, {
+      data: { order: orderWithLineItems(fixtures.regular, count) },
+    });
+
+    const response = await orders(orderWebhook("orders/create", ORDER_ID));
+
+    expect(response.status).toBe(200);
+    expect(await db.lineItem.count({ where: { orderId: ORDER_ID } })).toBe(
+      count,
+    );
+  },
+);
+
+it("BE-1 Webhook ingestion : 1. the order query asks for up to 250 line items", async () => {
+  const requests = mockAdminGraphql(SHOP, fixtures.regular);
+
+  await orders(orderWebhook("orders/create", ORDER_ID));
+
+  // A mocked response has the line items it was given, whatever the query asked for.
+  expect(requests[0].query).toContain("lineItems(first: 250)");
 });

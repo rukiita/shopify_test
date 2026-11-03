@@ -34,6 +34,22 @@ export function fixtureOrder(fixture: OrderQueryResponse) {
   return fixture.data.order;
 }
 
+// The order inside a fixture, with this many copies of its first line item. The
+// development store has no order this large to capture.
+export function orderWithLineItems(fixture: OrderQueryResponse, count: number) {
+  const order = fixtureOrder(fixture);
+  const [lineItem] = order.lineItems.nodes;
+  return {
+    ...order,
+    lineItems: {
+      nodes: Array.from({ length: count }, (_, index) => ({
+        ...lineItem,
+        id: `gid://shopify/LineItem/${index + 1}`,
+      })),
+    },
+  };
+}
+
 // Two pages of ORDER_IDS_QUERY captured from the development store: the orders of
 // productChanged and noCustomer, then the order of productNull. Captured with
 // `first: 2` and a filter on those three IDs, so that the store's other orders do
