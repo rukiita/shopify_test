@@ -284,8 +284,13 @@ it("BE-1 Webhook ingestion : 1. stores every order when several signed orders/cr
 it.each([51, 250])(
   "BE-1 Webhook ingestion : 1. stores all %i line items of an order for a signed orders/create webhook",
   async (count) => {
-    mockAdminGraphql(SHOP, {
-      data: { order: orderWithLineItems(fixtures.regular, count) },
+    const order = orderWithLineItems(fixtures.regular, count);
+    // Only as many line items as the query asks for, as Shopify would answer.
+    mockAdminGraphql(SHOP, (_variables, query) => {
+      const first = /lineItems\(first: (\d+)/.exec(query)?.[1];
+      if (!first) throw new Error("The query does not page its line items");
+      const nodes = order.lineItems.nodes.slice(0, Number(first));
+      return { data: { order: { ...order, lineItems: { nodes } } } };
     });
 
     const response = await orders(orderWebhook("orders/create", ORDER_ID));
@@ -294,17 +299,9 @@ it.each([51, 250])(
     expect(await db.lineItem.count({ where: { orderId: ORDER_ID } })).toBe(
       count,
     );
+    expect(await db.product.count({ where: { shop: SHOP } })).toBe(count);
   },
 );
-
-it("BE-1 Webhook ingestion : 1. the order query asks for up to 250 line items", async () => {
-  const requests = mockAdminGraphql(SHOP, fixtures.regular);
-
-  await orders(orderWebhook("orders/create", ORDER_ID));
-
-  // A mocked response has the line items it was given, whatever the query asked for.
-  expect(requests[0].query).toContain("lineItems(first: 250)");
-});
 
 it("BE-1 Webhook ingestion : 1. stores an order with a total of 0 for a signed orders/create webhook", async () => {
   const order = fixtureOrder(fixtures.regular);

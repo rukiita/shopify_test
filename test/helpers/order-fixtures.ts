@@ -34,17 +34,27 @@ export function fixtureOrder(fixture: OrderQueryResponse) {
   return fixture.data.order;
 }
 
-// The order inside a fixture, with this many copies of its first line item. The
-// development store has no order this large to capture.
+// The order inside a fixture, with this many copies of its first line item, each with
+// its own title and product. The development store has no order this large to capture.
 export function orderWithLineItems(fixture: OrderQueryResponse, count: number) {
   const order = fixtureOrder(fixture);
   const [lineItem] = order.lineItems.nodes;
+  if (!lineItem?.product) {
+    throw new Error("This fixture's first line item has no product");
+  }
+  const { product } = lineItem;
   return {
     ...order,
     lineItems: {
       nodes: Array.from({ length: count }, (_, index) => ({
         ...lineItem,
         id: `gid://shopify/LineItem/${index + 1}`,
+        title: `Title at purchase ${index + 1}`,
+        product: {
+          ...product,
+          id: `gid://shopify/Product/${index + 1}`,
+          title: `Product ${index + 1}`,
+        },
       })),
     },
   };

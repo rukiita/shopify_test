@@ -3,6 +3,7 @@ import { beforeEach, expect, it } from "vitest";
 import { mapOrder } from "../../app/lib/domain/order-mapper";
 import { saveOrder } from "../../app/lib/repositories/order-repository.server";
 import { loader } from "../../app/routes/app.export";
+import { csvLines } from "../helpers/csv";
 import { resetDatabase } from "../helpers/database";
 import {
   fixtureOrder,
@@ -97,6 +98,9 @@ it("BE-5 CSV export : 1. the loader writes a row for each of an order's 51 line 
     adminRequest("/app/export", sessionToken(SHOP), "GET"),
   );
 
-  const [, ...rows] = (await response.text()).trimEnd().split("\r\n");
-  expect(rows).toHaveLength(51);
+  const [, ...rows] = csvLines(await response.text());
+  const titles = rows.map((row) => /,(Product \d+),/.exec(row)?.[1]);
+  expect(titles.sort()).toEqual(
+    Array.from({ length: 51 }, (_, index) => `Product ${index + 1}`).sort(),
+  );
 });
