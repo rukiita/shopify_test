@@ -97,6 +97,8 @@ When asked, create a new development store (any plan works; **Basic** is recomme
 
 `npm run dev` applies the scopes (`read_customers`, `read_orders`, `read_products`, `write_orders`) and webhook subscriptions from the sections you copied in step 1; no other setup is needed.
 
+While `npm run dev` runs, a dev preview points the store's app at your machine. Uninstalling the app removes the preview. To install it again, use **Install app** on the **Installs** card of your app in the Dev Dashboard, then restart `npm run dev`. Without the restart, the app opens the placeholder `https://example.com`.
+
 The database needs no setup either. `npm run dev` runs `prisma generate` and `prisma migrate deploy` (`shopify.web.toml`), which create `prisma/dev.sqlite` on the first run and apply new migrations after that. No `.env` file is needed.
 
 ### 5. Place a test order
