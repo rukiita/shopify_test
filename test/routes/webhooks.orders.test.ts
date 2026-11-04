@@ -7,7 +7,11 @@ import {
   fixtures,
   orderWithLineItems,
 } from "../helpers/order-fixtures";
-import { mockAdminGraphql, resetAdminGraphql } from "../helpers/admin-graphql";
+import {
+  mockAdminGraphql,
+  resetAdminGraphql,
+  THROTTLED,
+} from "../helpers/admin-graphql";
 import { resetDatabase } from "../helpers/database";
 import { createOfflineSession } from "../helpers/session";
 import { signedWebhookRequest } from "../helpers/webhook";
@@ -95,6 +99,28 @@ it("BE-1 Webhook ingestion : 1. returns 200 and stores nothing when the refetche
   expect(requests).toHaveLength(1);
   expect(await db.order.count()).toBe(0);
 });
+
+it.each([
+  ["the GraphQL response has errors", THROTTLED],
+  ["the Admin API responds 503", () => new Response(null, { status: 503 })],
+])(
+  "BE-1 Webhook ingestion : 1. does not return 2xx when %s, so Shopify retries",
+  async (_failure, adminResponse) => {
+    const requests = mockAdminGraphql(SHOP, adminResponse);
+
+    // What the delivery gets back: React Router answers with a thrown Response as it
+    // is, and with 500 for anything else thrown.
+    const status = await orders(orderWebhook("orders/create", ORDER_ID)).then(
+      (response) => response.status,
+      (thrown: unknown) => (thrown instanceof Response ? thrown.status : 500),
+    );
+
+    expect(status).toBeGreaterThanOrEqual(300);
+    // The failure is the fetch, not something that stopped the route before it.
+    expect(requests).toHaveLength(1);
+    expect(await db.order.count()).toBe(0);
+  },
+);
 
 it("BE-1 Webhook ingestion : 1. returns 401 for an invalid signature", async () => {
   const requests = mockAdminGraphql(SHOP, fixtures.regular);
