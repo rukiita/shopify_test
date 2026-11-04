@@ -8,7 +8,11 @@ import {
   orderIdPages,
   type OrderQueryResponse,
 } from "../helpers/order-fixtures";
-import { mockAdminGraphql, resetAdminGraphql } from "../helpers/admin-graphql";
+import {
+  mockAdminGraphql,
+  resetAdminGraphql,
+  THROTTLED,
+} from "../helpers/admin-graphql";
 import { resetDatabase } from "../helpers/database";
 import { createOfflineSession } from "../helpers/session";
 import { adminRequest, sessionToken } from "../helpers/session-token";
@@ -166,13 +170,6 @@ it("BE-1 Webhook ingestion : 3. a sync does not count orders it did not write be
   expect(result).toEqual({ synced: 0 });
   expect(await db.order.count()).toBe(0);
 });
-
-// The error Shopify returns, with HTTP 200, when a query exceeds the rate limit
-// (https://shopify.dev/docs/api/usage/response-codes). Not captured: written from
-// the documented code.
-const THROTTLED = {
-  errors: [{ message: "Throttled", extensions: { code: "THROTTLED" } }],
-};
 
 it("BE-1 Webhook ingestion : 3. a sync that fails partway keeps the orders it wrote, reports the failure, and continues when run again", async () => {
   mockAdminGraphql(SHOP, (variables) =>
