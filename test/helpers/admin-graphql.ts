@@ -44,8 +44,8 @@ export function mockAdminGraphql(shop: string, response: object | Responder) {
 }
 
 // The error Shopify returns, with HTTP 200, when a query exceeds the rate limit
-// (https://shopify.dev/docs/api/usage/response-codes). Not captured: written from
-// the documented code.
+// (https://shopify.dev/docs/api/usage/response-codes). Not captured: the development
+// store cannot be made to throttle on demand. Written from the documented code.
 export const THROTTLED = {
   errors: [{ message: "Throttled", extensions: { code: "THROTTLED" } }],
 };
