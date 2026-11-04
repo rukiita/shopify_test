@@ -11,7 +11,11 @@ import tagsRemoveOtherCase from "../fixtures/tags-remove-other-case.json";
 import tagsRemoveMissingOrder from "../fixtures/tags-remove-missing-order.json";
 import tagsRemoved from "../fixtures/tags-remove.json";
 import { fixtureOrder, fixtures } from "../helpers/order-fixtures";
-import { mockAdminGraphql, resetAdminGraphql } from "../helpers/admin-graphql";
+import {
+  mockAdminGraphql,
+  resetAdminGraphql,
+  THROTTLED,
+} from "../helpers/admin-graphql";
 import { resetDatabase } from "../helpers/database";
 import { createOfflineSession } from "../helpers/session";
 import { adminRequest, sessionToken } from "../helpers/session-token";
@@ -89,13 +93,6 @@ const rejectedToken = () =>
     status: 401,
     headers: { "Content-Type": "application/json" },
   });
-
-// The error Shopify returns, with HTTP 200, when a query exceeds the rate limit
-// (https://shopify.dev/docs/api/usage/response-codes). Not captured: the development
-// store cannot be made to throttle on demand. Written from the documented code.
-const THROTTLED = {
-  errors: [{ message: "Throttled", extensions: { code: "THROTTLED" } }],
-};
 
 const removeTag = (tag: string) =>
   action({
