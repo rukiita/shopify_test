@@ -95,3 +95,43 @@ it("BE-7 Whole app : 1. a repeated app/uninstalled deletes the shop's data even 
   expect(await db.order.count()).toBe(0);
   expect(await db.product.count()).toBe(0);
 });
+
+it("BE-7 Whole app : 1. app/uninstalled returns 401 and keeps the data when the payload is for another shop", async () => {
+  // A body signed for test-shop, resent with another shop in the unsigned
+  // X-Shopify-Shop-Domain header.
+  await createOfflineSession(OTHER_SHOP);
+  await saveOrder(mapOrder(OTHER_SHOP, fixtureOrder(fixtures.regular)));
+
+  const response = await uninstalled(
+    signedWebhookRequest({
+      path: "/webhooks/app/uninstalled",
+      topic: "app/uninstalled",
+      shop: OTHER_SHOP,
+      body: uninstalledPayload,
+    }),
+  );
+
+  expect(response.status).toBe(401);
+  expect(await db.session.count({ where: { shop: OTHER_SHOP } })).toBe(1);
+  expect(await db.order.count({ where: { shop: OTHER_SHOP } })).toBe(1);
+  expect(await db.product.count({ where: { shop: OTHER_SHOP } })).toBe(2);
+});
+
+it("BE-7 Whole app : 1. app/uninstalled returns 401 and keeps the data when the payload names no shop", async () => {
+  // Shopify's documented sample has "myshopify_domain": null.
+  await saveOrder(mapOrder(SHOP, fixtureOrder(fixtures.regular)));
+
+  const response = await uninstalled(
+    signedWebhookRequest({
+      path: "/webhooks/app/uninstalled",
+      topic: "app/uninstalled",
+      shop: SHOP,
+      body: { ...uninstalledPayload, myshopify_domain: null },
+    }),
+  );
+
+  expect(response.status).toBe(401);
+  expect(await db.session.count({ where: { shop: SHOP } })).toBe(1);
+  expect(await db.order.count({ where: { shop: SHOP } })).toBe(1);
+  expect(await db.product.count({ where: { shop: SHOP } })).toBe(2);
+});
