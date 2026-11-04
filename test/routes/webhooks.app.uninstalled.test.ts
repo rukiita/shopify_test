@@ -1,5 +1,5 @@
 import type { ActionFunctionArgs } from "react-router";
-import { beforeEach, expect, it } from "vitest";
+import { beforeEach, expect, it, vi } from "vitest";
 import db from "../../app/db.server";
 import { mapOrder } from "../../app/lib/domain/order-mapper";
 import { saveOrder } from "../../app/lib/repositories/order-repository.server";
@@ -155,4 +155,25 @@ it("BE-7 Whole app : 1. app/uninstalled returns 401 and keeps the data when the 
   expect(await db.order.count({ where: { shop: SHOP } })).toBe(1);
   expect(await db.product.count({ where: { shop: SHOP } })).toBe(2);
   expect(await db.lineItem.count()).toBe(2);
+});
+
+it("BE-7 Whole app : 1. app/uninstalled logs the topic and shop, and nothing from the payload, when it returns 401", async () => {
+  const logged = vi.spyOn(console, "error").mockImplementation(() => {});
+
+  const response = await uninstalled(
+    signedWebhookRequest({
+      path: "/webhooks/app/uninstalled",
+      topic: "app/uninstalled",
+      shop: OTHER_SHOP,
+      body: uninstalledPayload,
+    }),
+  );
+
+  expect(response.status).toBe(401);
+  expect(logged.mock.calls).toEqual([
+    [
+      `Rejected app/uninstalled webhook for ${OTHER_SHOP}: the signed payload does not name this shop`,
+    ],
+  ]);
+  logged.mockRestore();
 });
