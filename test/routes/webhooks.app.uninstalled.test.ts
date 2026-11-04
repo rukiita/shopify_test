@@ -4,6 +4,7 @@ import db from "../../app/db.server";
 import { mapOrder } from "../../app/lib/domain/order-mapper";
 import { saveOrder } from "../../app/lib/repositories/order-repository.server";
 import { action } from "../../app/routes/webhooks.app.uninstalled";
+import uninstalledPayload from "../fixtures/app-uninstalled.json";
 import { resetDatabase } from "../helpers/database";
 import { fixtureOrder, fixtures } from "../helpers/order-fixtures";
 import { createOfflineSession } from "../helpers/session";
@@ -26,7 +27,7 @@ it("BE-7 Whole app : 1. a signed app/uninstalled webhook deletes the shop's sess
       path: "/webhooks/app/uninstalled",
       topic: "app/uninstalled",
       shop: SHOP,
-      body: {},
+      body: uninstalledPayload,
     }),
   );
 
@@ -40,7 +41,7 @@ it("BE-7 Whole app : 1. app/uninstalled with an invalid signature returns 401 an
       path: "/webhooks/app/uninstalled",
       topic: "app/uninstalled",
       shop: SHOP,
-      body: {},
+      body: uninstalledPayload,
       secret: "not-the-app-secret",
     }),
   ).catch((thrown: unknown) => thrown);
@@ -61,7 +62,7 @@ it("BE-7 Whole app : 1. app/uninstalled deletes the shop's orders, line items an
       path: "/webhooks/app/uninstalled",
       topic: "app/uninstalled",
       shop: SHOP,
-      body: {},
+      body: uninstalledPayload,
     }),
   );
 
@@ -86,7 +87,7 @@ it("BE-7 Whole app : 1. a repeated app/uninstalled deletes the shop's data even 
       path: "/webhooks/app/uninstalled",
       topic: "app/uninstalled",
       shop: SHOP,
-      body: {},
+      body: uninstalledPayload,
     }),
   );
 
