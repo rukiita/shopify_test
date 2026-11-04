@@ -218,7 +218,7 @@ Orders are matched by ID only (`orders_to_redact`, numeric IDs turned into GIDs)
 
 To check the routes by hand, run the app (`npm run dev`) and send Shopify's sample payloads with `npx shopify app webhook trigger --topic customers/data_request` (or `customers/redact`, `shop/redact`), giving the app's local address and client secret when asked. `customers/data_request` returns 200. The two redaction routes return 401 for the samples: their `shop_domain` is the placeholder `{shop}.myshopify.com`, which does not match the shop in the header. The redaction itself is covered by the route tests (`test/routes/webhooks.customers.redact.test.ts`, `test/routes/webhooks.shop.redact.test.ts`).
 
-`app/uninstalled` also rejects its sample, which has `"myshopify_domain": null`, so a 401 with `--topic app/uninstalled` is expected. `npm run dev` sends this kind of sample to the route by itself when the app's client ID differs from the previous run, which includes the first run and a run after `config:link`. The CLI then prints `APP_UNINSTALLED webhook delivery failed` and the local data stays. To clear the data, uninstall the app from the development store.
+`app/uninstalled` also rejects its sample, which has `"myshopify_domain": null`, so a 401 with `--topic app/uninstalled` is expected. `npm run dev` sends this kind of sample to the route by itself when the app's client ID differs from the previous run, which includes the first run and a run after `config:link`. The CLI then prints `APP_UNINSTALLED webhook delivery failed` and the local data stays.
 
 ## Interpretation of the task
 
