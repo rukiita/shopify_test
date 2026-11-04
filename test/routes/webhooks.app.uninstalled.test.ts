@@ -172,7 +172,7 @@ it("BE-7 Whole app : 1. app/uninstalled logs the topic and shop, and nothing fro
   expect(response.status).toBe(401);
   expect(logged.mock.calls).toEqual([
     [
-      `Rejected app/uninstalled webhook for ${OTHER_SHOP}: the signed payload does not name this shop`,
+      `Rejected APP_UNINSTALLED webhook for ${OTHER_SHOP}: the signed payload does not name this shop`,
     ],
   ]);
   logged.mockRestore();
