@@ -12,6 +12,9 @@ export const action = async ({ request }: ActionFunctionArgs) => {
   // cannot be resent for another. Shopify's documented sample has null here; a
   // real delivery has the shop's domain (test/fixtures/app-uninstalled.json).
   if (payload.myshopify_domain !== shop) {
+    console.error(
+      `Rejected ${topic} webhook for ${shop}: the signed payload does not name this shop`,
+    );
     return new Response(undefined, { status: 401 });
   }
 
