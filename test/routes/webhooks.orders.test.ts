@@ -101,11 +101,15 @@ it("BE-1 Webhook ingestion : 1. returns 200 and stores nothing when the refetche
 });
 
 it.each([
-  ["the GraphQL response has errors", THROTTLED],
-  ["the Admin API responds 503", () => new Response(null, { status: 503 })],
+  ["the GraphQL response has errors", THROTTLED, 500],
+  [
+    "the Admin API responds 503",
+    () => new Response(null, { status: 503 }),
+    503,
+  ],
 ])(
   "BE-1 Webhook ingestion : 1. does not return 2xx when %s, so Shopify retries",
-  async (_failure, adminResponse) => {
+  async (_failure, adminResponse, expectedStatus) => {
     const requests = mockAdminGraphql(SHOP, adminResponse);
 
     // What the delivery gets back: React Router answers with a thrown Response as it
@@ -115,7 +119,9 @@ it.each([
       (thrown: unknown) => (thrown instanceof Response ? thrown.status : 500),
     );
 
-    expect(status).toBeGreaterThanOrEqual(300);
+    // The exact status, because any error thrown after the fetch is also non-2xx: if
+    // the empty 503 reached `response.json()`, the parse error would give 500.
+    expect(status).toBe(expectedStatus);
     // The failure is the fetch, not something that stopped the route before it.
     expect(requests).toHaveLength(1);
     expect(await db.order.count()).toBe(0);
