@@ -2,7 +2,7 @@
 
 [English](README.md) | 日本語
 
-> これは [README.md](README.md) の翻訳です。内容が異なる場合は英語版を優先してください。リンク先の詳細ドキュメントは英語です。
+> これは [README.md](README.md) の翻訳です。内容が異なる場合は英語版を優先してください。ADR、要件、開発プロセスのドキュメントは英語です。
 
 ## 概要
 
@@ -22,7 +22,7 @@ Webhook で注文を取り込み、マーチャントが注文タグを追加・
 | 注文を CSV ファイルにエクスポートする | **Export CSV** は、ショップの全注文を明細ごとに 1 行でダウンロードします。各商品のタイトルとタグも含みます。[サンプルファイル](samples/orders.csv)で結果を確認できます |
 | `order/id/.json` にないフィールドを含める: Product title、Product tags | CSV には、注文の JSON にはない各商品のタイトルとタグが含まれます |
 
-- **顧客データ:** Shopify のコンプライアンス Webhook(Shopify がすべての公開アプリに求めるプライバシー関連の Webhook)を処理し、アプリがアンインストールされるとショップのデータを削除します([Customer data](docs/database.md#customer-data)を参照)
+- **顧客データ:** Shopify のコンプライアンス Webhook(Shopify がすべての公開アプリに求めるプライバシー関連の Webhook)を処理し、アプリがアンインストールされるとショップのデータを削除します([顧客データ](docs/database.ja.md#顧客データ)を参照)
 
 ### 注文一覧
 
@@ -48,7 +48,7 @@ Webhook で注文を取り込み、マーチャントが注文タグを追加・
 
 ## セットアップ
 
-管理画面の操作手順とスクリーンショットを含む全手順は、[docs/setup.md](docs/setup.md) にあります。
+管理画面の操作手順とスクリーンショットを含む全手順は、[docs/setup.ja.md](docs/setup.ja.md) にあります。
 
 1. 自分のアプリに接続します: `nvm use && npm ci && npm run config:link` を実行し、`shopify.app.toml` の `[access_scopes]` と `[webhooks]` を新しい `shopify.app.{name}.toml` にコピーします
 2. Partner Dashboard で、アプリの **Public distribution** を選びます
@@ -179,11 +179,11 @@ erDiagram
 - **注文の合計金額は、通貨の最小単位の整数です。** String は合計できず、SQLite 上の Prisma の `Decimal` は浮動小数点の REAL だからです
 - **タグと決済ゲートウェイは、String 列に入れた JSON 配列です。** SQLite に配列型がないからです
 
-テーブル、削除時の動作、インデックスとその理由は [docs/database.md](docs/database.md) にあります。
+テーブル、削除時の動作、インデックスとその理由は [docs/database.ja.md](docs/database.ja.md) にあります。
 
 ### タグ
 
-タグの追加と削除は、`tagsAdd` または `tagsRemove` で先に Shopify に書き込みます([タグを先に Shopify に書き込む理由](docs/adr/0004-sync-tags-to-shopify.md))。その後、アプリは Webhook と同じ方法で注文を再取得し、全体を保存します。入力のチェックは [Order tags](docs/interpretation.md#order-tags) にあります。
+タグの追加と削除は、`tagsAdd` または `tagsRemove` で先に Shopify に書き込みます([タグを先に Shopify に書き込む理由](docs/adr/0004-sync-tags-to-shopify.md))。その後、アプリは Webhook と同じ方法で注文を再取得し、全体を保存します。入力のチェックは [注文タグ](docs/interpretation.ja.md#注文タグ) にあります。
 
 ### CSV
 
@@ -200,7 +200,7 @@ erDiagram
 | エスケープ | RFC 4180 です(`,`、`"`、改行を含む値を引用符で囲み、`"` を 2 つ重ねます)。`,` と `;` の両方を区切り文字として受け付けるリーダーのため、`;` を含む値も引用符で囲みます |
 | 数式セル | テキストのセル(決済ゲートウェイ、顧客フィールド、タグ、商品タイトル、商品タグ)が `=`、`+`、`-`、`@`、タブ、復帰、改行、全角の `＝`、`＋`、`－`、`＠` で始まる場合、先頭に `'` を付けます。スプレッドシートがそのようなセルを数式として実行する場合があるからです([OWASP](https://owasp.org/www-community/attacks/CSV_Injection))。同じ文字がセル内の `;` や改行の後に続く場合も、間の `"` の有無にかかわらず `'` を付けます(`x;=1+1` は `x;'=1+1` になります)。`;` を区切り文字とするスプレッドシートではカンマで行が分割されないので、値は `;` と改行ごとに切られ、引用符では防げません。区切り文字がカンマのマーチャントには、値の中のその `'` が見えます。数値の列と生成された列(order id、order number、total price、created at)には付かないので、負の合計金額は数値のままです |
 
-ファイルのダウンロード方法とサンプルの内容は [CSV format](docs/interpretation.md#csv-format) にあります。
+ファイルのダウンロード方法とサンプルの内容は [CSV の形式](docs/interpretation.ja.md#csv-の形式) にあります。
 
 ### セキュリティと顧客データ
 
@@ -214,11 +214,11 @@ erDiagram
 | `app/uninstalled`、`shop/redact` | ショップの注文、明細、商品を削除します。ショップに再びセッションがある場合、`shop/redact` は何も削除しません |
 | `customers/data_request` | トピックとショップのみをログに記録します |
 
-詳細は [Customer data](docs/database.md#customer-data) にあります。保存時の暗号化など、対応していない事項は[既知の制限事項](#既知の制限事項--本番環境での考慮事項)にあります。
+詳細は [顧客データ](docs/database.ja.md#顧客データ) にあります。保存時の暗号化など、対応していない事項は[既知の制限事項](#既知の制限事項--本番環境での考慮事項)にあります。
 
 ## 課題の解釈
 
-課題にはいくつか細部が定められていない点があります。その理由は [docs/interpretation.md](docs/interpretation.md) にあります。
+課題にはいくつか細部が定められていない点があります。その理由は [docs/interpretation.ja.md](docs/interpretation.ja.md) にあります。
 
 | 問い | 選択 |
 |---|---|
@@ -251,7 +251,7 @@ npx vitest run -t "BE-3 Add tag"      # the tests of one requirement
 | ルート | ローダー、アクション、署名付き Webhook。置き換えるのは `admin.graphql` だけで、取得済みのレスポンスを使います |
 | UI | 描画される内容。jsdom の薄いテストです |
 
-設定と実際のストアは手動で確認します: [テスト注文の作成](docs/setup.md#5-place-a-test-order)、[既存の注文のインポート](docs/setup.md#6-import-existing-orders)、[コンプライアンス Webhook のサンプル送信](docs/database.md#customer-data)。
+設定と実際のストアは手動で確認します: [テスト注文の作成](docs/setup.ja.md#5-テスト注文を作成する)、[既存の注文のインポート](docs/setup.ja.md#6-既存の注文をインポートする)、[コンプライアンス Webhook のサンプル送信](docs/database.ja.md#顧客データ)。
 
 ## 各要件の参照先
 
@@ -260,15 +260,15 @@ npx vitest run -t "BE-3 Add tag"      # the tests of one requirement
 | 要件 | 実装 | テスト | 決定 |
 |---|---|---|---|
 | BE-1 ストアの Webhook から注文を作成・更新する | `app/routes/webhooks.orders.tsx`、`app/routes/app.sync.tsx`、`app/lib/ingest-order.server.ts` | `BE-1 Webhook ingestion`: `test/routes/webhooks.orders.test.ts`、`test/routes/app.sync.test.ts` | [アプリが各注文を再取得する理由](docs/adr/0003-refetch-order-via-graphql.md)、[Webhook をリクエスト内で処理する理由](docs/adr/0005-process-webhooks-synchronously.md) |
-| BE-2 使いやすい画面で注文の一覧を表示する | `app/routes/app._index.tsx`、`app/components/order-table.tsx` | `BE-2 Order list`: `test/routes/app._index.test.ts` | [UI に Polaris web components を使う理由](docs/adr/0002-polaris-web-components.md)、[Order list columns](docs/interpretation.md#order-list-columns) |
-| BE-3 注文にタグを追加する | `app/routes/app.tags.tsx`、`app/lib/tag-order.server.ts` | `BE-3 Add tag`: `test/routes/app.tags.test.ts` | [タグを先に Shopify に書き込む理由](docs/adr/0004-sync-tags-to-shopify.md)、[Order tags](docs/interpretation.md#order-tags) |
-| BE-4 注文からタグを削除する | `app/routes/app.tags.tsx`、`app/lib/tag-order.server.ts` | `BE-4 Remove tag`: `test/routes/app.tags.test.ts` | [タグを先に Shopify に書き込む理由](docs/adr/0004-sync-tags-to-shopify.md)、[Order tags](docs/interpretation.md#order-tags) |
+| BE-2 使いやすい画面で注文の一覧を表示する | `app/routes/app._index.tsx`、`app/components/order-table.tsx` | `BE-2 Order list`: `test/routes/app._index.test.ts` | [UI に Polaris web components を使う理由](docs/adr/0002-polaris-web-components.md)、[注文一覧の列](docs/interpretation.ja.md#注文一覧の列) |
+| BE-3 注文にタグを追加する | `app/routes/app.tags.tsx`、`app/lib/tag-order.server.ts` | `BE-3 Add tag`: `test/routes/app.tags.test.ts` | [タグを先に Shopify に書き込む理由](docs/adr/0004-sync-tags-to-shopify.md)、[注文タグ](docs/interpretation.ja.md#注文タグ) |
+| BE-4 注文からタグを削除する | `app/routes/app.tags.tsx`、`app/lib/tag-order.server.ts` | `BE-4 Remove tag`: `test/routes/app.tags.test.ts` | [タグを先に Shopify に書き込む理由](docs/adr/0004-sync-tags-to-shopify.md)、[注文タグ](docs/interpretation.ja.md#注文タグ) |
 | BE-5 注文を CSV ファイルにエクスポートする | `app/routes/app.export.tsx`、`app/lib/domain/orders-csv.ts` | `BE-5 CSV export`: `test/domain/orders-csv.test.ts` | [CSV](#csv) |
-| BE-6 `order/id/.json` にないフィールドを含める: Product title、Product tags | `app/lib/shopify/order-query.ts`、`app/lib/domain/order-mapper.ts` | `BE-6 Fields not in order JSON`: `test/repositories/order-repository.test.ts` | [アプリが各注文を再取得する理由](docs/adr/0003-refetch-order-via-graphql.md)、[Product title](docs/interpretation.md#product-title-the-products-own-title-falling-back-to-the-title-at-purchase) |
+| BE-6 `order/id/.json` にないフィールドを含める: Product title、Product tags | `app/lib/shopify/order-query.ts`、`app/lib/domain/order-mapper.ts` | `BE-6 Fields not in order JSON`: `test/repositories/order-repository.test.ts` | [アプリが各注文を再取得する理由](docs/adr/0003-refetch-order-via-graphql.md)、[商品タイトル](docs/interpretation.ja.md#商品タイトル-商品自体のタイトルを優先) |
 
 ## 既知の制限事項 / 本番環境での考慮事項
 
-主な項目を以下に示します。理由、関連する Issue、依存関係の監査を含む全項目は [docs/known-limitations.md](docs/known-limitations.md) にあります。
+主な項目を以下に示します。理由、関連する Issue、依存関係の監査を含む全項目は [docs/known-limitations.ja.md](docs/known-limitations.ja.md) にあります。
 
 ### スコープの判断
 
@@ -309,9 +309,9 @@ Issue の中では、`test:` コミットが失敗するテストを追加し、
 
 | ファイル | 内容 |
 |---|---|
-| [docs/setup.md](docs/setup.md) | インストールと設定の全手順 |
-| [docs/database.md](docs/database.md) | テーブル、設計上の選択、削除時の動作、顧客データ |
-| [docs/interpretation.md](docs/interpretation.md) | 課題の各解釈の理由 |
-| [docs/known-limitations.md](docs/known-limitations.md) | すべての制限事項と依存関係の監査 |
+| [docs/setup.ja.md](docs/setup.ja.md) | インストールと設定の全手順 |
+| [docs/database.ja.md](docs/database.ja.md) | テーブル、設計上の選択、削除時の動作、顧客データ |
+| [docs/interpretation.ja.md](docs/interpretation.ja.md) | 課題の各解釈の理由 |
+| [docs/known-limitations.ja.md](docs/known-limitations.ja.md) | すべての制限事項と依存関係の監査 |
 | [docs/adr/](docs/adr/README.md) | Architecture Decision Records(ADR): この README からリンクしている設計上の決定。それぞれの選択肢と理由、および要約の表があります |
 | [docs/requirements.md](docs/requirements.md) | 要件、対応する Issue、テストの命名 |
