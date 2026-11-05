@@ -9,16 +9,16 @@ Orders are kept as copies of Shopify's data, and tag edits are written to Shopif
 
 ## Features
 
-| Requirement | What the merchant does | Implementation | Tests | Decision |
-|---|---|---|---|---|
-| BE-1 Orders from webhooks | `orders/create` and `orders/updated` webhooks keep a copy of each order, its line items and their products in the app's database. **Sync orders** imports orders from the last 60 days that are not stored yet or have changed | `app/routes/webhooks.orders.tsx`, `app/routes/app.sync.tsx`, `app/lib/ingest-order.server.ts` | `BE-1 Webhook ingestion`: `test/routes/webhooks.orders.test.ts`, `test/routes/app.sync.test.ts` | [ADR-0003](docs/adr/0003-refetch-order-via-graphql.md), [ADR-0005](docs/adr/0005-process-webhooks-synchronously.md) |
-| BE-2 Order list | Orders newest first, 50 per page, with number, date, customer, email, total, payment gateway and tags | `app/routes/app._index.tsx`, `app/components/order-table.tsx` | `BE-2 Order list`: `test/routes/app._index.test.ts` | [ADR-0002](docs/adr/0002-polaris-web-components.md), [Order list columns](docs/interpretation.md#order-list-columns) |
-| BE-3 Add tag | Merchants add a tag from the order's row. Tags are written to Shopify, so they also appear in the Shopify admin | `app/routes/app.tags.tsx`, `app/lib/tag-order.server.ts` | `BE-3 Add tag`: `test/routes/app.tags.test.ts` | [ADR-0004](docs/adr/0004-sync-tags-to-shopify.md), [Order tags](docs/interpretation.md#order-tags) |
-| BE-4 Remove tag | Merchants remove one with the button next to it | `app/routes/app.tags.tsx`, `app/lib/tag-order.server.ts` | `BE-4 Remove tag`: `test/routes/app.tags.test.ts` | [ADR-0004](docs/adr/0004-sync-tags-to-shopify.md), [Order tags](docs/interpretation.md#order-tags) |
-| BE-5 CSV export | **Export CSV** downloads all of the shop's orders, one row per line item, including each product's title and tags. [`samples/orders.csv`](samples/orders.csv) is a sample | `app/routes/app.export.tsx`, `app/lib/domain/orders-csv.ts` | `BE-5 CSV export`: `test/domain/orders-csv.test.ts` | [CSV](#csv) |
-| BE-6 Fields not in the order JSON | The CSV has each product's title and tags, which the order JSON does not | `app/lib/shopify/order-query.ts`, `app/lib/domain/order-mapper.ts` | `BE-6 Fields not in order JSON`: `test/repositories/order-repository.test.ts` | [ADR-0003](docs/adr/0003-refetch-order-via-graphql.md), [Product title](docs/interpretation.md#product-title-the-products-own-title-falling-back-to-the-title-at-purchase) |
+| What the task asks for | What the app does |
+|---|---|
+| Create/update orders from store webhooks | When an order is created or updated in the store, a webhook keeps a copy of the order, its line items and their products in the app's database. **Sync orders** imports orders from the last 60 days that are not stored yet or have changed |
+| Display a list of orders in a user-friendly interface | Orders newest first, 50 per page, with number, date, customer, email, total, payment gateway and tags |
+| Add a tag to an order | Merchants add a tag from the order's row. Tags are written to Shopify, so they also appear in the Shopify admin |
+| Remove a tag from an order | Merchants remove one with the button next to it |
+| Export orders to a CSV file | **Export CSV** downloads all of the shop's orders, one row per line item, including each product's title and tags. [A sample file](samples/orders.csv) shows the result |
+| Include fields not in `order/id/.json`: Product title, Product tags | The CSV has each product's title and tags, which the order JSON does not |
 
-- **Customer data:** the app handles Shopify's compliance webhooks and deletes a shop's data when the app is uninstalled (see [Customer data](docs/database.md#customer-data))
+- **Customer data:** the app handles Shopify's compliance webhooks (the privacy webhooks Shopify requires of every public app) and deletes a shop's data when the app is uninstalled (see [Customer data](docs/database.md#customer-data))
 
 ### Order list
 
@@ -246,6 +246,19 @@ The tests need no Partner account, store or `.env` file. Test names follow `BE-{
 | UI | What is rendered, with thin jsdom tests |
 
 Configuration and the real store are checked by hand: [placing a test order](docs/setup.md#5-place-a-test-order), [importing existing orders](docs/setup.md#6-import-existing-orders) and [sending sample compliance webhooks](docs/database.md#customer-data).
+
+## Where to find each requirement
+
+Each requirement of the task, with its ID, the code that implements it, its tests and the decisions behind it. The test files listed are the main ones: searching `test/` for the name prefix finds the rest.
+
+| Requirement | Implementation | Tests | Decisions |
+|---|---|---|---|
+| BE-1 Create/update orders from store webhooks | `app/routes/webhooks.orders.tsx`, `app/routes/app.sync.tsx`, `app/lib/ingest-order.server.ts` | `BE-1 Webhook ingestion`: `test/routes/webhooks.orders.test.ts`, `test/routes/app.sync.test.ts` | [Why the app re-fetches each order](docs/adr/0003-refetch-order-via-graphql.md), [Why webhooks are processed within the request](docs/adr/0005-process-webhooks-synchronously.md) |
+| BE-2 Display a list of orders in a user-friendly interface | `app/routes/app._index.tsx`, `app/components/order-table.tsx` | `BE-2 Order list`: `test/routes/app._index.test.ts` | [Why the UI uses Polaris web components](docs/adr/0002-polaris-web-components.md), [Order list columns](docs/interpretation.md#order-list-columns) |
+| BE-3 Add a tag to an order | `app/routes/app.tags.tsx`, `app/lib/tag-order.server.ts` | `BE-3 Add tag`: `test/routes/app.tags.test.ts` | [Why tags are written to Shopify first](docs/adr/0004-sync-tags-to-shopify.md), [Order tags](docs/interpretation.md#order-tags) |
+| BE-4 Remove a tag from an order | `app/routes/app.tags.tsx`, `app/lib/tag-order.server.ts` | `BE-4 Remove tag`: `test/routes/app.tags.test.ts` | [Why tags are written to Shopify first](docs/adr/0004-sync-tags-to-shopify.md), [Order tags](docs/interpretation.md#order-tags) |
+| BE-5 Export orders to a CSV file | `app/routes/app.export.tsx`, `app/lib/domain/orders-csv.ts` | `BE-5 CSV export`: `test/domain/orders-csv.test.ts` | [CSV](#csv) |
+| BE-6 Include fields not in `order/id/.json`: Product title, Product tags | `app/lib/shopify/order-query.ts`, `app/lib/domain/order-mapper.ts` | `BE-6 Fields not in order JSON`: `test/repositories/order-repository.test.ts` | [Why the app re-fetches each order](docs/adr/0003-refetch-order-via-graphql.md), [Product title](docs/interpretation.md#product-title-the-products-own-title-falling-back-to-the-title-at-purchase) |
 
 ## Known limitations / Production considerations
 
