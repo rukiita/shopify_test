@@ -6,6 +6,7 @@ Instructions for Claude sessions working in this repository.
 
 - **Talk to the author in Japanese.**
 - **Write everything that is committed or posted to GitHub in English**: code, comments, tests, commit messages, issues, PRs, ADRs, README, UI text. The reviewers are English speakers.
+- **Exception: `README.ja.md`** is the Japanese translation of `README.md`. A PR that changes `README.md` updates it too. `README.md` is the source of truth.
 
 ## Rules to follow
 
