@@ -5,6 +5,7 @@ A Shopify app that captures orders through webhooks, lets merchants add and remo
 ## Contents
 
 - [Features](#features)
+- [Reviewer's guide](#reviewers-guide)
 - [Screenshots](#screenshots)
 - [Installation and configuration](#installation-and-configuration)
 - [Database design](#database-design)
@@ -23,6 +24,27 @@ The app is embedded in the Shopify admin. Its home page is the order list.
 - **Order tags:** merchants add a tag from the order's row and remove one with the button next to it. Tags are written to Shopify, so they also appear in the Shopify admin
 - **CSV export:** **Export CSV** downloads all of the shop's orders, one row per line item, including each product's title and tags. [`samples/orders.csv`](samples/orders.csv) is a sample
 - **Customer data:** the app handles Shopify's compliance webhooks and deletes a shop's data when the app is uninstalled (see [Customer data](#customer-data))
+
+## Reviewer's guide
+
+Where to start for each requirement in [docs/requirements.md](docs/requirements.md): the main code, one test file, and the decision behind it.
+
+| Requirement | Implementation | Tests | Decision |
+|---|---|---|---|
+| BE-1 Orders from webhooks | `app/routes/webhooks.orders.tsx`, `app/lib/ingest-order.server.ts` | `BE-1 Webhook ingestion`: `test/routes/webhooks.orders.test.ts` | [ADR-0003](docs/adr/0003-refetch-order-via-graphql.md), [ADR-0005](docs/adr/0005-process-webhooks-synchronously.md) |
+| BE-2 Order list | `app/routes/app._index.tsx`, `app/components/order-table.tsx` | `BE-2 Order list`: `test/routes/app._index.test.ts` | [ADR-0002](docs/adr/0002-polaris-web-components.md), [Order list columns](#order-list-columns) |
+| BE-3 Add tag | `app/routes/app.tags.tsx`, `app/lib/tag-order.server.ts` | `BE-3 Add tag`: `test/routes/app.tags.test.ts` | [ADR-0004](docs/adr/0004-sync-tags-to-shopify.md), [Order tags](#order-tags) |
+| BE-4 Remove tag | `app/routes/app.tags.tsx`, `app/lib/tag-order.server.ts` | `BE-4 Remove tag`: `test/routes/app.tags.test.ts` | [ADR-0004](docs/adr/0004-sync-tags-to-shopify.md), [Order tags](#order-tags) |
+| BE-5 CSV export | `app/routes/app.export.tsx`, `app/lib/domain/orders-csv.ts` | `BE-5 CSV export`: `test/domain/orders-csv.test.ts` | [CSV rows](#csv-rows-one-row-per-line-item), [CSV format](#csv-format) |
+| BE-6 Fields not in the order JSON | `app/lib/shopify/order-query.ts`, `app/lib/domain/order-mapper.ts` | `BE-6 Fields not in order JSON`: `test/repositories/order-repository.test.ts` | [ADR-0003](docs/adr/0003-refetch-order-via-graphql.md), [Product title](#product-title-the-products-own-title-falling-back-to-the-title-at-purchase), [Product tags](#product-tags-as-fetched-with-an-order-containing-the-product) |
+| SUB-1 Regular commits | The commit history | None (document) | [ADR-0006](docs/adr/0006-tdd.md), [Reading the commit history](#reading-the-commit-history) |
+| SUB-2 Database design | `prisma/schema.prisma` | `BE-7 Whole app : 3`: `test/database/schema.test.ts` | [Database design](#database-design) |
+| SUB-3 Screenshots | `docs/images/features/` | None (document) | [Screenshots](#screenshots) |
+| SUB-4 Sample CSV | `samples/orders.csv` | `BE-5 CSV export : 1`: `test/domain/orders-csv-sample.test.ts` | [CSV format](#csv-format) |
+| SUB-5 Install and configuration | `shopify.app.toml`, `shopify.web.toml` | None (document) | [Installation and configuration](#installation-and-configuration) |
+| SUB-6 Implementation choices | `docs/adr/README.md` | None (document) | [Implementation choices](#implementation-choices) |
+
+Test names start with the prefix shown ([test naming](docs/requirements.md#test-naming)), so `npx vitest run -t "BE-3 Add tag"` runs all of a requirement's tests, in every file. Not in the table: the sync of existing orders (`app/routes/app.sync.tsx`, `BE-1 Webhook ingestion : 3`), and the app lifecycle and compliance webhooks (`BE-7 Whole app : 1`, [Customer data](#customer-data)).
 
 ## Screenshots
 
