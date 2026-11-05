@@ -272,7 +272,7 @@ These follow from the scope in the [Overview](#overview). The main items are bel
 
 ### Scope decisions
 
-- Webhooks are processed within the request over one SQLite connection. Production would use a queue and a database with concurrent writes
+- Webhooks are processed within the request over one SQLite connection. For production, see [rows 1 and 2](#moving-to-production)
 - Only the first 250 line items of an order are stored (one page of the GraphQL query). Line items beyond that are not stored and not in the CSV
 - Access tokens and customer data are not encrypted at rest
 - `customers/data_request` only logs the request
@@ -283,6 +283,21 @@ These follow from the scope in the [Overview](#overview). The main items are bel
 - An `app/uninstalled` delivery fails when the shop's offline token (the access token the app uses when no merchant is present) has expired, so the shop's data is not deleted
 - A signed `app/uninstalled` delivery can be sent again after a reinstall, and a late retry can do the same, deleting the new install's data
 - A webhook's fetch in the same second as a tag edit can undo the edit in the stored copy
+
+### Moving to production
+
+How the design would change for production. None of this is built. The reasoning and evidence for each row are in [Moving to production](docs/known-limitations.md#moving-to-production).
+
+| # | Bottleneck | Design for production | Reason |
+|---|---|---|---|
+| 1 | The response waits for the work: a webhook is answered only after the order is fetched and stored (about 0.5 s). | Verify the signature, put the delivery in a durable queue and respond, and let another process fetch, store and retry on failure. | Processing time and bursts of orders no longer decide whether the response meets the deadline. |
+| 2 | Writes run one at a time over one connection to one database file, which also ties the app to one machine. | Use a database that accepts concurrent writes and an app that keeps no state, so several instances can run. | Capacity grows with instances, and one failure does not stop the app. |
+| 3 | Only webhooks keep the copy current, and recovering a missed one depends on someone pressing **Sync orders**. | Add periodic reconciliation that fetches the orders changed since the last run and fills in missed webhooks. | Delivery is not guaranteed, and retries end. |
+| 4 | Handled webhooks are not recorded: idempotent writes and the `updatedAt` check absorb repeated order webhooks, but a deletion webhook sent again deletes a reinstalled shop's data. | Record handled webhooks and skip repeats, and compare deletion webhooks with the time of install; this does not fully stop a resent delivery, because the delivery ID and the delivery time are headers, which the signature does not cover. | The same webhook can arrive more than once, and a deletion cannot be undone. |
+| 5 | Customer data is handled as in development: it is not encrypted at rest, data requests are only logged, and deletion webhooks depend on the session and fail with an expired token. | Encrypt at rest, answer data requests within the required time, and let deletion run on the signature alone, without the session. | These are platform requirements, and deletion must happen. |
+| 6 | Large data is handled in one piece: one page of 250 line items, the CSV built in memory within one request, and the sync run one order at a time. | Page through line items, stream the CSV or build it in the background and hand it over later, and run the sync as a background bulk fetch. | Large stores would lose data, slow down, or hold up other work. |
+| 7 | The app runs only on a developer's machine, and failures go unnoticed: there is no deployment configuration, CI or monitoring. | Automate build, test and deployment, monitor failed and rejected webhooks and alert on them, and keep secrets outside the code. | An unnoticed failure lasts until retries end and data is lost. |
+| 8 | Dependencies stay at the template's versions, with 6 known issues in production dependencies. | Update dependencies regularly and keep auditing them. | The packages with the current issues do not handle request data, but issues accumulate. |
 
 ## Development process
 
@@ -313,6 +328,6 @@ The README alone is enough to evaluate the work. These files hold the detail.
 | [docs/setup.md](docs/setup.md) | Full installation and configuration steps |
 | [docs/database.md](docs/database.md) | Tables, design choices, delete behaviour, customer data |
 | [docs/interpretation.md](docs/interpretation.md) | The reasoning behind each reading of the task |
-| [docs/known-limitations.md](docs/known-limitations.md) | All limitations, and the dependency audit |
+| [docs/known-limitations.md](docs/known-limitations.md) | All limitations, the design for production with its evidence, and the dependency audit |
 | [docs/adr/](docs/adr/README.md) | Architecture Decision Records (ADRs): the design decisions linked throughout this README, each with its options and reasoning, and a table summarizing them |
 | [docs/requirements.md](docs/requirements.md) | Requirements, their issues, and the test naming |
