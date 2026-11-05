@@ -7,6 +7,8 @@ A Shopify app that captures orders through webhooks, lets merchants add and remo
 The app is embedded in the Shopify admin. Its home page is the order list.
 Orders are kept as copies of Shopify's data, and tag edits are written to Shopify first, so Shopify remains the owner of the data.
 
+**Scope.** The app is built for this task: it runs on one development store with `npm run dev`, for one reviewer, and needs no other service. It chooses a setup that is simple to run (SQLite, webhooks processed within the request) over production scale. The limits were measured: one webhook takes about 0.5 s against Shopify's 5-second limit, and 39 webhooks sent within 8 seconds (10 orders created at once, then tagged at once) were all stored on the first attempt ([measurements](docs/adr/0005-process-webhooks-synchronously.md)). What production would need is listed under [Known limitations](#known-limitations--production-considerations).
+
 ## Features
 
 | What the task asks for | What the app does |
@@ -264,11 +266,12 @@ Each requirement of the task, with its ID, the code that implements it, its test
 
 ## Known limitations / Production considerations
 
-The main items are below. The full list, with the reasoning, the related issues and the dependency audit, is in [docs/known-limitations.md](docs/known-limitations.md).
+These follow from the scope in the [Overview](#overview). The main items are below. The full list, with the reasoning, the related issues and the dependency audit, is in [docs/known-limitations.md](docs/known-limitations.md).
 
 ### Scope decisions
 
 - Webhooks are processed within the request over one SQLite connection. Production would use a queue and a database with concurrent writes
+- Only the first 250 line items of an order are stored (one page of the GraphQL query). Line items beyond that are not stored and not in the CSV
 - Access tokens and customer data are not encrypted at rest
 - `customers/data_request` only logs the request
 - There is no CI, and no deployment configuration
