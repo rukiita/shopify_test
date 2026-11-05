@@ -1,5 +1,7 @@
 # Shopify Order Tags
 
+English | [日本語](README.ja.md)
+
 A Shopify app that captures orders through webhooks, lets merchants add and remove order tags, and exports orders to CSV.
 
 ## Contents
