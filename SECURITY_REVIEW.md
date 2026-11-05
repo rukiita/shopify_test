@@ -73,7 +73,7 @@ The command skips test files, documentation, missing hardening, data retention a
 - Anything that exposes customer data, lets an unauthenticated request change data, or leaks a secret is a **Blocker**
 - The fix-and-verify limit in [REVIEW.md](REVIEW.md) §4 covers both parts together: one round, then stop and report
 
-If a finding cannot be fixed within the task, record it in the README under "Known limitations / Production considerations".
+If a finding cannot be fixed within the task, record it in `docs/known-limitations.md`.
 
 ## References
 

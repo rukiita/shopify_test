@@ -4,7 +4,7 @@ Each requirement in the task description has an ID and a matching GitHub issue.
 
 - **Progress is tracked in issues.** This table does not hold status
 - Interpretation and acceptance criteria live in each issue
-- Design decisions live in `docs/adr/`; interpretation of the task lives in the README ("Interpretation of the task")
+- Design decisions live in `docs/adr/`; interpretation of the task is summarized in the README ("Interpretation of the task"), with the reasoning in `docs/interpretation.md`
 
 Issue numbers are the ones assigned when `scripts/bootstrap-issues.sh` runs on a fresh repository.
 The script stops if any issue or PR already exists, so the numbers cannot drift.
@@ -48,7 +48,7 @@ SUB-* deliverables are documents, so they have no tests.
 | DEC-3 | #15 | How order data is obtained (webhook payload / refetch via GraphQL) | ADR-0003 |
 | DEC-4 | #16 | Where tags are written (Shopify / app only) | ADR-0004 |
 | DEC-5 | #17 | Process webhooks synchronously or via a queue | ADR-0005 |
-| DEC-6 | #18 | Interpretation of the task (CSV row granularity, product title, product tag freshness, address, CSV format) | README |
+| DEC-6 | #18 | Interpretation of the task (CSV row granularity, product title, product tag freshness, address, CSV format) | README / `docs/interpretation.md` |
 | DEC-7 | #22 | Development process (TDD) | ADR-0006 / CONTRIBUTING.md |
 
 ## Chores

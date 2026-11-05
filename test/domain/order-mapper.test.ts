@@ -96,7 +96,7 @@ it("BE-6 Fields not in order JSON : 1. stores the line item product title", () =
     fixtureOrder(fixtures.productChanged),
   );
 
-  // The product's own title is the current one (README, "Product title").
+  // The product's own title is the current one (docs/interpretation.md, "Product title").
   expect(products).toContainEqual(
     expect.objectContaining({
       id: "gid://shopify/Product/9478544261275",
