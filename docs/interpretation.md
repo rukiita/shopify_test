@@ -2,7 +2,7 @@
 
 The reasoning behind each reading of the task. The [README](../README.md#interpretation-of-the-task) has a summary.
 
-The task leaves some details open. These are the readings this app follows (decided in #18).
+The task leaves some details open. These are the readings this app follows.
 
 ## CSV rows: one row per line item
 
@@ -65,8 +65,8 @@ Merchants add a tag from the order's row in the list. The tag is checked before 
 | Over 55 characters | Rejected | Shopify answers `Order tags is invalid` from 56. An emoji counts as one character |
 | The order already has it, in any case | Rejected | `tagsAdd` treats `vip` as an existing `VIP`, and does nothing |
 
-The limit and the behaviour above were measured on the development store (Admin API 2026-10, #3); the documentation does not state them. The check uses the stored copy of the tags, which can be behind Shopify. A tag added in the Shopify admin a moment ago may not be caught, and `tagsAdd` then does nothing for it. A duplicate found in the stored copy is checked again against a refetch of the order, so a tag removed in the Shopify admin a moment ago can be added back.
+The limit and the behaviour above were measured on the development store (Admin API 2026-10); the documentation does not state them. The check uses the stored copy of the tags, which can be behind Shopify. A tag added in the Shopify admin a moment ago may not be caught, and `tagsAdd` then does nothing for it. A duplicate found in the stored copy is checked again against a re-fetch of the order (reading it again from the Admin API), so a tag removed in the Shopify admin a moment ago can be added back.
 
 Merchants remove a tag with the button next to it. The tag is sent exactly as it is stored, because `tagsRemove` matches case-sensitively and ignores a tag it does not find, without an error. It does not go through the checks above, so a tag added elsewhere that they would reject can still be removed. If the response still has the tag, in any case, the merchant gets an error, and the order is stored again so that trying again uses the tag as Shopify has it.
 
-After a tag edit, the app refetches the order and stores it whole, the same way as a webhook ([ADR-0003](adr/0003-refetch-order-via-graphql.md)). So the stored `updatedAt` always describes all of the order's columns, and an edit that changed nothing in Shopify, which sends no `orders/updated`, still brings the copy up to date. A webhook's fetch from before the edit is older, so it is skipped when it finishes late. If the refetch fails, the merchant is still told the edit worked, because it reached Shopify; the `orders/updated` for it repairs the copy.
+After a tag edit, the app re-fetches the order and stores it whole, the same way as a webhook ([Why the app re-fetches each order](adr/0003-refetch-order-via-graphql.md)). So the stored `updatedAt` always describes all of the order's columns, and an edit that changed nothing in Shopify, which sends no `orders/updated`, still brings the copy up to date. A webhook's fetch from before the edit is older, so it is skipped when it finishes late. If the re-fetch fails, the merchant is still told the edit worked, because it reached Shopify; the `orders/updated` for it repairs the copy.

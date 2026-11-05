@@ -9,16 +9,16 @@ Orders are kept as copies of Shopify's data, and tag edits are written to Shopif
 
 ## Features
 
-| Requirement | What the merchant does | Implementation | Tests | Decision |
-|---|---|---|---|---|
-| BE-1 Orders from webhooks | `orders/create` and `orders/updated` webhooks keep a copy of each order, its line items and their products in the app's database. **Sync orders** imports orders from the last 60 days that are not stored yet or have changed | `app/routes/webhooks.orders.tsx`, `app/routes/app.sync.tsx`, `app/lib/ingest-order.server.ts` | `BE-1 Webhook ingestion`: `test/routes/webhooks.orders.test.ts`, `test/routes/app.sync.test.ts` | [ADR-0003](docs/adr/0003-refetch-order-via-graphql.md), [ADR-0005](docs/adr/0005-process-webhooks-synchronously.md) |
-| BE-2 Order list | Orders newest first, 50 per page, with number, date, customer, email, total, payment gateway and tags | `app/routes/app._index.tsx`, `app/components/order-table.tsx` | `BE-2 Order list`: `test/routes/app._index.test.ts` | [ADR-0002](docs/adr/0002-polaris-web-components.md), [Order list columns](docs/interpretation.md#order-list-columns) |
-| BE-3 Add tag | Merchants add a tag from the order's row. Tags are written to Shopify, so they also appear in the Shopify admin | `app/routes/app.tags.tsx`, `app/lib/tag-order.server.ts` | `BE-3 Add tag`: `test/routes/app.tags.test.ts` | [ADR-0004](docs/adr/0004-sync-tags-to-shopify.md), [Order tags](docs/interpretation.md#order-tags) |
-| BE-4 Remove tag | Merchants remove one with the button next to it | `app/routes/app.tags.tsx`, `app/lib/tag-order.server.ts` | `BE-4 Remove tag`: `test/routes/app.tags.test.ts` | [ADR-0004](docs/adr/0004-sync-tags-to-shopify.md), [Order tags](docs/interpretation.md#order-tags) |
-| BE-5 CSV export | **Export CSV** downloads all of the shop's orders, one row per line item, including each product's title and tags. [`samples/orders.csv`](samples/orders.csv) is a sample | `app/routes/app.export.tsx`, `app/lib/domain/orders-csv.ts` | `BE-5 CSV export`: `test/domain/orders-csv.test.ts` | [CSV](#csv) |
-| BE-6 Fields not in the order JSON | The CSV has each product's title and tags, which the order JSON does not | `app/lib/shopify/order-query.ts`, `app/lib/domain/order-mapper.ts` | `BE-6 Fields not in order JSON`: `test/repositories/order-repository.test.ts` | [ADR-0003](docs/adr/0003-refetch-order-via-graphql.md), [Product title](docs/interpretation.md#product-title-the-products-own-title-falling-back-to-the-title-at-purchase) |
+| What the task asks for | What the app does |
+|---|---|
+| Create/update orders from store webhooks | When an order is created or updated in the store, a webhook keeps a copy of the order, its line items and their products in the app's database. **Sync orders** imports orders from the last 60 days that are not stored yet or have changed |
+| Display a list of orders in a user-friendly interface | Orders newest first, 50 per page, with number, date, customer, email, total, payment gateway and tags |
+| Add a tag to an order | Merchants add a tag from the order's row. Tags are written to Shopify, so they also appear in the Shopify admin |
+| Remove a tag from an order | Merchants remove one with the button next to it |
+| Export orders to a CSV file | **Export CSV** downloads all of the shop's orders, one row per line item, including each product's title and tags. [A sample file](samples/orders.csv) shows the result |
+| Include fields not in `order/id/.json`: Product title, Product tags | The CSV has each product's title and tags, which the order JSON does not |
 
-- **Customer data:** the app handles Shopify's compliance webhooks and deletes a shop's data when the app is uninstalled (see [Customer data](docs/database.md#customer-data))
+- **Customer data:** the app handles Shopify's compliance webhooks (the privacy webhooks Shopify requires of every public app) and deletes a shop's data when the app is uninstalled (see [Customer data](docs/database.md#customer-data))
 
 ### Order list
 
@@ -69,13 +69,13 @@ The full steps, with the admin click paths and screenshots, are in [docs/setup.m
 
 | Area | Choice | Why |
 |---|---|---|
-| Framework | React Router 7 | Remix's successor and Shopify's current app template ([ADR-0001](docs/adr/0001-react-router-template.md)) |
-| UI | Polaris web components | Polaris React receives no more updates ([ADR-0002](docs/adr/0002-polaris-web-components.md)) |
+| Framework | React Router 7 | Remix's successor and Shopify's current app template ([Why the app is built on the React Router template](docs/adr/0001-react-router-template.md)) |
+| UI | Polaris web components | Polaris React receives no more updates ([Why the UI uses Polaris web components](docs/adr/0002-polaris-web-components.md)) |
 | Database | Prisma + SQLite | No database server to set up. See [Database](#database) |
-| Shopify API | Admin GraphQL API 2026-10 | Webhooks only trigger a refetch ([ADR-0003](docs/adr/0003-refetch-order-via-graphql.md)) |
-| Tests | Vitest | Developed test-first ([ADR-0006](docs/adr/0006-tdd.md)) |
+| Shopify API | Admin GraphQL API 2026-10 | Webhooks only trigger a re-fetch, which reads the order again from the Admin API ([Why the app re-fetches each order](docs/adr/0003-refetch-order-via-graphql.md)) |
+| Tests | Vitest | Developed test-first ([Why the work was done test-first](docs/adr/0006-tdd.md)) |
 
-There are few runtime dependencies because the app adds no library for CSV or queues: the CSV writer is a pure function, and webhooks are processed within the request ([ADR-0005](docs/adr/0005-process-webhooks-synchronously.md)).
+There are few runtime dependencies because the app adds no library for CSV or queues: the CSV writer is a pure function, and webhooks are processed within the request ([Why webhooks are processed within the request](docs/adr/0005-process-webhooks-synchronously.md)).
 
 ## Directory structure
 
@@ -91,14 +91,14 @@ app/
 prisma/               schema and migrations
 samples/              sample CSV export
 test/                 tests by layer, helpers, captured API responses
-docs/                 details, ADRs, requirements, images
+docs/                 details, decision records, requirements, images
 ```
 
 ## Design
 
 ### Data flow
 
-An order webhook is only a trigger. The route fetches the whole order through GraphQL, and writes it before it responds ([ADR-0003](docs/adr/0003-refetch-order-via-graphql.md), [ADR-0005](docs/adr/0005-process-webhooks-synchronously.md)).
+An order webhook is only a trigger. It carries the order's GID (Shopify's global ID, `gid://shopify/Order/…`). The route re-fetches the whole order through GraphQL with that ID, and writes it before it responds ([Why the app re-fetches each order](docs/adr/0003-refetch-order-via-graphql.md), [Why webhooks are processed within the request](docs/adr/0005-process-webhooks-synchronously.md)).
 
 ```mermaid
 sequenceDiagram
@@ -129,7 +129,7 @@ A failed fetch does not return 2xx, so Shopify retries the delivery. **Sync orde
 | Repositories | `app/lib/repositories/` | The only code that reads or writes orders |
 | UI | `app/components/` | Presentational |
 
-One deliberate trade-off (#70): `domain/order-list-row.ts` and `domain/orders-csv.ts` hold Prisma types and `select` definitions, so the domain layer knows about persistence. This ties the columns read from the database to the columns sent to the browser (without `customerAddress`) in one typed place.
+One deliberate trade-off: `domain/order-list-row.ts` and `domain/orders-csv.ts` hold Prisma types and `select` definitions, so the domain layer knows about persistence. This ties the columns read from the database to the columns sent to the browser (without `customerAddress`) in one typed place.
 
 ### Database
 
@@ -179,7 +179,7 @@ The tables, delete behaviour, indexes and the reasoning are in [docs/database.md
 
 ### Tags
 
-Adding or removing a tag writes to Shopify first, with `tagsAdd` or `tagsRemove` ([ADR-0004](docs/adr/0004-sync-tags-to-shopify.md)). The app then refetches the order and stores it whole, the same way as a webhook. The checks on the input are in [Order tags](docs/interpretation.md#order-tags).
+Adding or removing a tag writes to Shopify first, with `tagsAdd` or `tagsRemove` ([Why tags are written to Shopify first](docs/adr/0004-sync-tags-to-shopify.md)). The app then re-fetches the order and stores it whole, the same way as a webhook. The checks on the input are in [Order tags](docs/interpretation.md#order-tags).
 
 ### CSV
 
@@ -214,7 +214,7 @@ The details are in [Customer data](docs/database.md#customer-data). What is not 
 
 ## Interpretation of the task
 
-The task leaves some details open (decided in #18). The reasoning is in [docs/interpretation.md](docs/interpretation.md).
+The task leaves some details open. The reasoning is in [docs/interpretation.md](docs/interpretation.md).
 
 | Question | Choice |
 |---|---|
@@ -231,12 +231,14 @@ The task leaves some details open (decided in #18). The reasoning is in [docs/in
 
 ## Tests
 
+The tests need no Partner account, store or `.env` file, and the work was done test-first ([Why the work was done test-first](docs/adr/0006-tdd.md)).
+
+Test names start with the requirement ID, BE-1 to BE-6, listed in [docs/requirements.md](docs/requirements.md). The full format is `BE-{n} {Feature} : {spec}. {test case}` ([Test naming](docs/requirements.md#test-naming)).
+
 ```bash
 npm test                              # all tests once
 npx vitest run -t "BE-3 Add tag"      # the tests of one requirement
 ```
-
-The tests need no Partner account, store or `.env` file. Test names follow `BE-{n} {Feature} : {spec}. {test case}` ([docs/requirements.md](docs/requirements.md#test-naming)), and the work was done test-first ([ADR-0006](docs/adr/0006-tdd.md)).
 
 | Layer | What is tested |
 |---|---|
@@ -247,9 +249,22 @@ The tests need no Partner account, store or `.env` file. Test names follow `BE-{
 
 Configuration and the real store are checked by hand: [placing a test order](docs/setup.md#5-place-a-test-order), [importing existing orders](docs/setup.md#6-import-existing-orders) and [sending sample compliance webhooks](docs/database.md#customer-data).
 
+## Where to find each requirement
+
+Each requirement of the task, with its ID, the code that implements it, its tests and the decisions behind it. The test files listed are the main ones: searching `test/` for the name prefix finds the rest.
+
+| Requirement | Implementation | Tests | Decisions |
+|---|---|---|---|
+| BE-1 Create/update orders from store webhooks | `app/routes/webhooks.orders.tsx`, `app/routes/app.sync.tsx`, `app/lib/ingest-order.server.ts` | `BE-1 Webhook ingestion`: `test/routes/webhooks.orders.test.ts`, `test/routes/app.sync.test.ts` | [Why the app re-fetches each order](docs/adr/0003-refetch-order-via-graphql.md), [Why webhooks are processed within the request](docs/adr/0005-process-webhooks-synchronously.md) |
+| BE-2 Display a list of orders in a user-friendly interface | `app/routes/app._index.tsx`, `app/components/order-table.tsx` | `BE-2 Order list`: `test/routes/app._index.test.ts` | [Why the UI uses Polaris web components](docs/adr/0002-polaris-web-components.md), [Order list columns](docs/interpretation.md#order-list-columns) |
+| BE-3 Add a tag to an order | `app/routes/app.tags.tsx`, `app/lib/tag-order.server.ts` | `BE-3 Add tag`: `test/routes/app.tags.test.ts` | [Why tags are written to Shopify first](docs/adr/0004-sync-tags-to-shopify.md), [Order tags](docs/interpretation.md#order-tags) |
+| BE-4 Remove a tag from an order | `app/routes/app.tags.tsx`, `app/lib/tag-order.server.ts` | `BE-4 Remove tag`: `test/routes/app.tags.test.ts` | [Why tags are written to Shopify first](docs/adr/0004-sync-tags-to-shopify.md), [Order tags](docs/interpretation.md#order-tags) |
+| BE-5 Export orders to a CSV file | `app/routes/app.export.tsx`, `app/lib/domain/orders-csv.ts` | `BE-5 CSV export`: `test/domain/orders-csv.test.ts` | [CSV](#csv) |
+| BE-6 Include fields not in `order/id/.json`: Product title, Product tags | `app/lib/shopify/order-query.ts`, `app/lib/domain/order-mapper.ts` | `BE-6 Fields not in order JSON`: `test/repositories/order-repository.test.ts` | [Why the app re-fetches each order](docs/adr/0003-refetch-order-via-graphql.md), [Product title](docs/interpretation.md#product-title-the-products-own-title-falling-back-to-the-title-at-purchase) |
+
 ## Known limitations / Production considerations
 
-The main items are below. The full list, with the reasoning and the dependency audit, is in [docs/known-limitations.md](docs/known-limitations.md).
+The main items are below. The full list, with the reasoning, the related issues and the dependency audit, is in [docs/known-limitations.md](docs/known-limitations.md).
 
 ### Scope decisions
 
@@ -260,9 +275,9 @@ The main items are below. The full list, with the reasoning and the dependency a
 
 ### Known issues
 
-- An `app/uninstalled` delivery fails when the shop's offline token has expired, so the shop's data is not deleted (#95)
-- A signed `app/uninstalled` delivery can be sent again after a reinstall, and a late retry can do the same, deleting the new install's data (#98, #74)
-- A webhook's fetch in the same second as a tag edit can undo the edit in the stored copy (#3)
+- An `app/uninstalled` delivery fails when the shop's offline token (the access token the app uses when no merchant is present) has expired, so the shop's data is not deleted
+- A signed `app/uninstalled` delivery can be sent again after a reinstall, and a late retry can do the same, deleting the new install's data
+- A webhook's fetch in the same second as a tag edit can undo the edit in the stored copy
 
 ## Development process
 
@@ -294,5 +309,5 @@ The README alone is enough to evaluate the work. These files hold the detail.
 | [docs/database.md](docs/database.md) | Tables, design choices, delete behaviour, customer data |
 | [docs/interpretation.md](docs/interpretation.md) | The reasoning behind each reading of the task |
 | [docs/known-limitations.md](docs/known-limitations.md) | All limitations, and the dependency audit |
-| [docs/adr/](docs/adr/README.md) | Architecture Decision Records, with a summary of each decision |
+| [docs/adr/](docs/adr/README.md) | Architecture Decision Records (ADRs): the design decisions linked throughout this README, each with its options and reasoning, and a table summarizing them |
 | [docs/requirements.md](docs/requirements.md) | Requirements, their issues, and the test naming |
