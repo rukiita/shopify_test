@@ -1,5 +1,7 @@
 # Known limitations / Production considerations
 
+English | [日本語](known-limitations.ja.md)
+
 The full list. The [README](../README.md#known-limitations--production-considerations) has the main items.
 
 ## Scope decisions

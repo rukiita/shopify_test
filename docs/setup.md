@@ -1,5 +1,7 @@
 # Installation and configuration
 
+English | [日本語](setup.ja.md)
+
 The full installation and configuration steps. The [README](../README.md#setup) has the short version.
 
 Shopify admin labels are given as they appear in English. If a screen has changed, the linked Shopify documentation has the current steps.

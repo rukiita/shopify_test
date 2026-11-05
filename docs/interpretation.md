@@ -1,5 +1,7 @@
 # Interpretation of the task
 
+English | [日本語](interpretation.ja.md)
+
 The reasoning behind each reading of the task. The [README](../README.md#interpretation-of-the-task) has a summary.
 
 The task leaves some details open. These are the readings this app follows.
