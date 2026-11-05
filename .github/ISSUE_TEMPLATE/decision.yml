@@ -55,6 +55,6 @@ body:
       label: Where the outcome is recorded
       options:
         - ADR (docs/adr/)
-        - README "Interpretation of the task"
+        - docs/interpretation.md
     validations:
       required: true
