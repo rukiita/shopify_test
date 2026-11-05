@@ -86,6 +86,7 @@ Do not write tests against data whose shape you have not seen, such as GraphQL r
 - Put `Closes #n` in the description
 - Explain **why**, not only what: for a decision PR, state what was verified and how the decision was made
 - Documentation (README, ADRs) describes what is built. For behaviour that is not built yet, link the issue instead of describing it, so that a review can check every statement against the code
+- `README.ja.md` and `docs/{setup,database,interpretation,known-limitations}.ja.md` are the Japanese translations of the files with the same name without `.ja`, which are the source of truth. A PR that changes one of those English files updates its translation in the same PR
 - Merge with **Create a merge commit**. Squash and rebase merges are disabled because they would erase the TDD commits
 - Get a review as described in [REVIEW.md](REVIEW.md): by an agent that did not write the code, with one fix-and-verify round
 - If the PR touches an area in [SECURITY_REVIEW.md](SECURITY_REVIEW.md) §1, also get a security review

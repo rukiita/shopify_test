@@ -1,5 +1,7 @@
 # Database design
 
+English | [日本語](database.ja.md)
+
 The ER diagram and the main choices are in the [README](../README.md#database). This file has the rest.
 
 The database is SQLite, managed with Prisma (`prisma/schema.prisma`). Orders, line items and products are copies of Shopify data. Shopify owns the data ([Why tags are written to Shopify first](adr/0004-sync-tags-to-shopify.md)). The copies are written in four ways:
