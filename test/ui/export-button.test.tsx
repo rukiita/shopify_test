@@ -7,23 +7,28 @@ afterEach(cleanup);
 
 const noop = () => {};
 
-it("BE-5 CSV export : 1. the export button is disabled while exporting and shows a failure", () => {
+it("BE-5 CSV export : 1. the export button is disabled while exporting", () => {
   const { container, rerender } = render(
-    <ExportButton exporting={false} failed={false} onExport={noop} />,
+    <ExportButton exporting={false} onExport={noop} />,
   );
   const button = () => container.querySelector("s-button");
-  const failure = () => container.querySelector('s-text[tone="critical"]');
   expect(button()?.textContent).toBe("Export CSV");
   expect(button()?.hasAttribute("disabled")).toBe(false);
-  expect(failure()).toBeNull();
 
-  rerender(<ExportButton exporting failed={false} onExport={noop} />);
+  rerender(<ExportButton exporting onExport={noop} />);
   expect(button()?.hasAttribute("disabled")).toBe(true);
   expect(button()?.hasAttribute("loading")).toBe(true);
 
-  rerender(<ExportButton exporting={false} failed onExport={noop} />);
+  rerender(<ExportButton exporting={false} onExport={noop} />);
   expect(button()?.hasAttribute("disabled")).toBe(false);
-  expect(failure()?.textContent).toBe(
-    "The orders could not be exported. Try again.",
+});
+
+it("BE-5 CSV export : 1. the export button can be a page action", () => {
+  const { container } = render(
+    <ExportButton slot="secondary-actions" exporting={false} onExport={noop} />,
+  );
+
+  expect(container.querySelector("s-button")?.getAttribute("slot")).toBe(
+    "secondary-actions",
   );
 });
