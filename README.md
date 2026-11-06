@@ -16,7 +16,7 @@ Orders are kept as copies of Shopify's data, and tag edits are written to Shopif
 | What the task asks for | What the app does |
 |---|---|
 | Create/update orders from store webhooks | When an order is created or updated in the store, a webhook keeps a copy of the order, its line items and their products in the app's database. **Sync orders** imports orders from the last 60 days that are not stored yet or have changed |
-| Display a list of orders in a user-friendly interface | Orders newest first, 50 per page, with number, date, customer, email, total, payment gateway and tags |
+| Display a list of orders in a user-friendly interface | Orders newest first, 25 per page, with number, date, customer, email, total, payment gateway and tags |
 | Add a tag to an order | Merchants add a tag from the order's row. Tags are written to Shopify, so they also appear in the Shopify admin |
 | Remove a tag from an order | Merchants remove one with the button next to it |
 | Export orders to a CSV file | **Export CSV** downloads all of the shop's orders, one row per line item, including each product's title and tags. [A sample file](samples/orders.csv) shows the result |

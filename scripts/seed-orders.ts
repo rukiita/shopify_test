@@ -1,5 +1,5 @@
 // Creates 53 test orders in a development store, so a reviewer can see the
-// order list's second page (50 orders per page) without placing orders by hand
+// order list's later pages (25 orders per page) without placing orders by hand
 // (#120).
 //
 //   npx shopify store auth --store <store>.myshopify.com --scopes read_products,write_draft_orders,read_orders
