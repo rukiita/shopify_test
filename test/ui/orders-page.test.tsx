@@ -35,18 +35,23 @@ const page = (orders: OrderListRow[]) => ({
 });
 
 // The app route and the order list route, nested as in the app. Each loader is given
-// by the test; the app route's content stands in for its nav.
+// by the test; the app route's content stands in for its nav. App Bridge's `shopify`
+// global is replaced, and `toast` records the toasts shown.
 function renderOrders({
   appLoader = () => null,
   ordersLoader,
   tagsAction = () => null,
+  syncAction = () => ({ synced: 0 }),
   url = "/",
 }: {
   appLoader?: () => unknown;
   ordersLoader: (args: { request: Request }) => unknown;
   tagsAction?: (args: { request: Request }) => unknown;
+  syncAction?: (args: { request: Request }) => unknown;
   url?: string;
 }) {
+  const toast = vi.fn<(message: string) => void>();
+  vi.stubGlobal("shopify", { toast: { show: toast } });
   const Stub = createRoutesStub([
     {
       id: "routes/app",
@@ -73,9 +78,25 @@ function renderOrders({
       ],
     },
     { path: "/app/tags", action: tagsAction as never },
+    { path: "/app/sync", action: syncAction as never },
   ]);
-  return render(<Stub initialEntries={[url]} />);
+  return { ...render(<Stub initialEntries={[url]} />), toast };
 }
+
+// The buttons in `s-page`'s secondary-actions slot, which App Bridge shows in the
+// admin's title bar.
+const pageActions = (container: HTMLElement) =>
+  [...container.querySelectorAll('s-page > [slot="secondary-actions"]')].map(
+    (action) => action.textContent,
+  );
+
+const buttonsNamed = (container: HTMLElement, name: string) =>
+  [...container.querySelectorAll("s-button")].filter(
+    (button) => button.textContent === name,
+  );
+
+const banner = (container: HTMLElement) =>
+  container.querySelector('s-banner[tone="critical"]')?.textContent;
 
 const table = (container: HTMLElement) =>
   waitFor(() => {
@@ -174,23 +195,88 @@ it("BE-2 Order list : 1. next and previous change the cursor in the URL and keep
   expect(previous.get("host")).toBe("abc");
 });
 
-it("BE-2 Order list : 1. the empty state has the Sync button, and it is on the page once", async () => {
-  const buttons = (container: HTMLElement) =>
-    [...container.querySelectorAll("s-button")].map((b) => b.textContent);
+it("BE-2 Order list : 1. with orders, Sync orders and Export CSV are page actions in the title bar", async () => {
+  const { container } = renderOrders({ ordersLoader: () => page([row(1)]) });
+  await table(container);
 
-  const empty = renderOrders({ ordersLoader: () => page([]) });
+  expect(pageActions(container)).toEqual(["Sync orders", "Export CSV"]);
+  expect(buttonsNamed(container, "Sync orders")).toHaveLength(1);
+  expect(buttonsNamed(container, "Export CSV")).toHaveLength(1);
+});
+
+it("BE-2 Order list : 1. the empty state has the Sync button in the page body, and no page actions", async () => {
+  const { container } = renderOrders({ ordersLoader: () => page([]) });
   await waitFor(() => {
-    expect(empty.container.querySelector("s-heading")).not.toBeNull();
+    expect(container.querySelector("s-heading")).not.toBeNull();
   });
-  expect(buttons(empty.container)).toEqual(["Sync orders"]);
-  expect(empty.container.textContent).toContain("last 60 days");
-  cleanup();
 
-  const listed = renderOrders({ ordersLoader: () => page([row(1)]) });
-  await table(listed.container);
-  expect(
-    buttons(listed.container).filter((text) => text === "Sync orders"),
-  ).toHaveLength(1);
+  expect(pageActions(container)).toEqual([]);
+  const sync = buttonsNamed(container, "Sync orders");
+  expect(sync).toHaveLength(1);
+  expect(sync[0].hasAttribute("slot")).toBe(false);
+  expect(buttonsNamed(container, "Export CSV")).toHaveLength(0);
+  expect(container.textContent).toContain("last 60 days");
+});
+
+const syncButton = async (container: HTMLElement) => {
+  await waitFor(() => {
+    if (buttonsNamed(container, "Sync orders").length === 0) {
+      throw new Error("The Sync button is not rendered yet");
+    }
+  });
+  return buttonsNamed(container, "Sync orders")[0];
+};
+
+it("BE-1 Webhook ingestion : 3. a finished sync shows how many orders were imported in a toast", async () => {
+  const { container, toast } = renderOrders({
+    ordersLoader: () => page([row(1)]),
+    syncAction: () => ({ synced: 3 }),
+  });
+
+  fireEvent.click(await syncButton(container));
+
+  await waitFor(() => expect(toast).toHaveBeenCalledWith("Imported 3 orders"));
+  expect(toast).toHaveBeenCalledTimes(1);
+  expect(banner(container)).toBeUndefined();
+});
+
+it("BE-1 Webhook ingestion : 3. a sync that stops partway shows a banner with the count", async () => {
+  const { container, toast } = renderOrders({
+    ordersLoader: () => page([row(1)]),
+    syncAction: () => ({ synced: 2, failed: true }),
+  });
+
+  fireEvent.click(await syncButton(container));
+
+  await waitFor(() => {
+    expect(banner(container)).toBe(
+      "Sync stopped after importing 2 orders. Run it again to continue.",
+    );
+  });
+  expect(toast).not.toHaveBeenCalled();
+});
+
+it("BE-1 Webhook ingestion : 3. a click while a sync runs starts no second sync", async () => {
+  let finish: (result: { synced: number }) => void = () => {};
+  const syncAction = vi.fn(
+    () =>
+      new Promise<{ synced: number }>((resolve) => {
+        finish = resolve;
+      }),
+  );
+  const { container, toast } = renderOrders({
+    ordersLoader: () => page([row(1)]),
+    syncAction,
+  });
+  const button = await syncButton(container);
+
+  fireEvent.click(button);
+  await waitFor(() => expect(syncAction).toHaveBeenCalledTimes(1));
+  fireEvent.click(button);
+  finish({ synced: 1 });
+
+  await waitFor(() => expect(toast).toHaveBeenCalledWith("Imported 1 order"));
+  expect(syncAction).toHaveBeenCalledTimes(1);
 });
 
 it("BE-3 Add tag : 1. the order list sends the tag to the tag action, and shows the order's new tags", async () => {
@@ -324,9 +410,7 @@ it("BE-4 Remove tag : 1. the next attempt on the row clears a failed removal's e
 
 const exportButton = async (container: HTMLElement) => {
   await table(container);
-  return [...container.querySelectorAll("s-button")].find(
-    (button) => button.textContent === "Export CSV",
-  )!;
+  return buttonsNamed(container, "Export CSV")[0];
 };
 
 // jsdom has no object URLs and does not follow a link's download.
@@ -356,8 +440,7 @@ const csvResponse = () =>
     headers: { "Content-Type": "text/csv; charset=utf-8" },
   });
 
-const exportError = (container: HTMLElement) =>
-  container.querySelector('s-text[tone="critical"]')?.textContent;
+const exportError = banner;
 
 it("BE-5 CSV export : 1. the order list saves the file from the export route", async () => {
   const fetched = vi.fn<(url: string) => Promise<Response>>(async () =>
@@ -397,6 +480,27 @@ it("BE-5 CSV export : 1. the order list disables the export button until the exp
   finish(csvResponse());
   await waitFor(() => expect(button.hasAttribute("disabled")).toBe(false));
   expect(saved).toHaveLength(1);
+});
+
+it("BE-5 CSV export : 1. a click while an export runs starts no second export", async () => {
+  let finish: (response: Response) => void = () => {};
+  const fetched = vi.fn(
+    () =>
+      new Promise<Response>((resolve) => {
+        finish = resolve;
+      }),
+  );
+  vi.stubGlobal("fetch", fetched);
+  const { container } = renderOrders({ ordersLoader: () => page([row(1)]) });
+  const button = await exportButton(container);
+  const { saved } = spyOnSaving();
+
+  fireEvent.click(button);
+  fireEvent.click(button);
+  finish(csvResponse());
+
+  await waitFor(() => expect(saved).toHaveLength(1));
+  expect(fetched).toHaveBeenCalledTimes(1);
 });
 
 it.each([
