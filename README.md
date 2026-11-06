@@ -16,7 +16,7 @@ Orders are kept as copies of Shopify's data, and tag edits are written to Shopif
 | What the task asks for | What the app does |
 |---|---|
 | Create/update orders from store webhooks | When an order is created or updated in the store, a webhook keeps a copy of the order, its line items and their products in the app's database. **Sync orders** imports orders from the last 60 days that are not stored yet or have changed |
-| Display a list of orders in a user-friendly interface | Orders newest first, 25 per page, with number, date, customer, email, total, payment gateway and tags |
+| Display a list of orders in a user-friendly interface | Orders newest first, 25 per page, each with its customer, total and tags |
 | Add a tag to an order | Merchants add a tag from the order's row. Tags are written to Shopify, so they also appear in the Shopify admin |
 | Remove a tag from an order | Merchants remove one with the button next to it |
 | Export orders to a CSV file | **Export CSV** downloads all of the shop's orders, one row per line item, including each product's title and tags. [A sample file](samples/orders.csv) shows the result |
@@ -38,13 +38,9 @@ Orders are kept as copies of Shopify's data, and tag edits are written to Shopif
 
 ![The exported CSV file open in a spreadsheet](docs/images/features/csv-file.png)
 
-## Requirements
-
-- Node.js **24.22.1** (`.nvmrc`)
-- A Shopify Partner account with an organization ([partners.shopify.com](https://partners.shopify.com))
-- A development store (created in step 4 below)
-
 ## Setup
+
+You need Node.js **24.22.1** (`.nvmrc`; `nvm use` selects it) and a Shopify Partner account with an organization ([partners.shopify.com](https://partners.shopify.com)). The development store is created in step 4.
 
 The full steps, with the admin click paths and screenshots, are in [docs/setup.md](docs/setup.md).
 
@@ -70,15 +66,15 @@ The full steps, with the admin click paths and screenshots, are in [docs/setup.m
 
 ## Tech stack
 
-| Area | Choice | Why |
-|---|---|---|
-| Framework | React Router 7 | Remix's successor and Shopify's current app template ([Why the app is built on the React Router template](docs/adr/0001-react-router-template.md)) |
-| UI | Polaris web components | Polaris React receives no more updates ([Why the UI uses Polaris web components](docs/adr/0002-polaris-web-components.md)) |
-| Database | Prisma + SQLite | No database server to set up. See [Database](#database) |
-| Shopify API | Admin GraphQL API 2026-10 | Webhooks only trigger a re-fetch, which reads the order again from the Admin API ([Why the app re-fetches each order](docs/adr/0003-refetch-order-via-graphql.md)) |
-| Tests | Vitest | Developed test-first ([Why the work was done test-first](docs/adr/0006-tdd.md)) |
+| Area | Choice |
+|---|---|
+| Framework | React Router 7 (Shopify's app template) |
+| UI | Polaris web components |
+| Database | Prisma + SQLite |
+| Shopify API | Admin GraphQL API 2026-10 |
+| Tests | Vitest |
 
-There are few runtime dependencies because the app adds no library for CSV or queues: the CSV writer is a pure function, and webhooks are processed within the request ([Why webhooks are processed within the request](docs/adr/0005-process-webhooks-synchronously.md)).
+Why each was chosen is under [Design and implementation choices](#design-and-implementation-choices). There are few runtime dependencies: the CSV writer is a pure function, and webhooks are processed within the request.
 
 ## Directory structure
 
@@ -97,7 +93,31 @@ test/                 tests by layer, helpers, captured API responses
 docs/                 details, decision records, requirements, images
 ```
 
-## Design
+## Design and implementation choices
+
+The main choices, with where each is explained. The decision records also give the options that were considered.
+
+**Design decisions**
+
+| Choice | Why | Details |
+|---|---|---|
+| Build on Shopify's React Router app template | It is Remix's successor, and Shopify's current template | [Decision record](docs/adr/0001-react-router-template.md) |
+| Build the UI with Polaris web components | Polaris React receives no more updates | [Decision record](docs/adr/0002-polaris-web-components.md) |
+| Treat a webhook as a trigger and re-fetch the whole order | Product tags are never in the order payload, so a fetch is needed anyway, and one query gives one source for the whole order | [Data flow](#data-flow), [decision record](docs/adr/0003-refetch-order-via-graphql.md) |
+| Process webhooks within the request | One webhook finishes well within Shopify's 5-second limit (measured, see [Overview](#overview)), and no other service is needed | [Decision record](docs/adr/0005-process-webhooks-synchronously.md) |
+| Write tags to Shopify first, then store the order | Shopify stays the owner of the data, so the tags also appear in the Shopify admin | [Tags](#tags), [decision record](docs/adr/0004-sync-tags-to-shopify.md) |
+| Develop test-first, from a failing test for each requirement | Each requirement is shown by tests named after it | [Tests](#tests), [decision record](docs/adr/0006-tdd.md) |
+
+**Implementation decisions**
+
+| Choice | Why | Details |
+|---|---|---|
+| SQLite over one database connection | No database server to run, and concurrent webhooks wait for each other instead of failing on a locked database | [Database](#database), [measurements](docs/adr/0005-process-webhooks-synchronously.md) |
+| Store the order total as an integer in the currency's minor unit | No floating-point rounding, and the number of decimals follows the currency | [Database](#database) |
+| Write a fetched order only if it is not older than the stored copy (`updatedAt`) | A late or repeated webhook does not overwrite newer data | [Data flow](#data-flow) |
+| Keep redacted customer fields empty | A later webhook or sync does not bring them back | [Security and customer data](#security-and-customer-data) |
+| Remove a tag exactly as stored, then check that it is gone | Shopify matches tags case-sensitively and reports no error when it removes nothing | [Order tags](docs/interpretation.md#order-tags) |
+| Prefix formula-like cells in text columns of the CSV | A spreadsheet can run such a cell as a formula; numeric columns stay numbers | [CSV](#csv) |
 
 ### Data flow
 
@@ -267,20 +287,12 @@ Each requirement of the task, with its ID, the code that implements it, its test
 
 ## Known limitations / Production considerations
 
-These follow from the scope in the [Overview](#overview). The main items are below. The full list, with the reasoning, the related issues and the dependency audit, is in [docs/known-limitations.md](docs/known-limitations.md).
-
-### Scope decisions
-
-- Webhooks are processed within the request over one SQLite connection. For production, see [rows 1 and 2](#moving-to-production)
-- Only the first 250 line items of an order are stored (one page of the GraphQL query). Line items beyond that are not stored and not in the CSV
-- Access tokens and customer data are not encrypted at rest
-- `customers/data_request` only logs the request
-- There is no CI, and no deployment configuration
+These follow from the scope in the [Overview](#overview). The known issues of the current app are below, followed by how the design would change for production. The full list, with the reasoning, the related issues and the dependency audit, is in [docs/known-limitations.md](docs/known-limitations.md).
 
 ### Known issues
 
-- An `app/uninstalled` delivery fails when the shop's offline token (the access token the app uses when no merchant is present) has expired, so the shop's data is not deleted
-- A signed `app/uninstalled` delivery can be sent again after a reinstall, and a late retry can do the same, deleting the new install's data
+- An `app/uninstalled` delivery fails when the shop's offline token (the access token the app uses when no merchant is present) has expired, so the shop's data is not deleted (production: [row 5](#moving-to-production))
+- A signed `app/uninstalled` delivery can be sent again after a reinstall, and a late retry can do the same, deleting the new install's data (production: [row 4](#moving-to-production))
 - A webhook's fetch in the same second as a tag edit can undo the edit in the stored copy
 
 ### Moving to production
@@ -289,7 +301,7 @@ How the design would change for production. None of this is built. The reasoning
 
 | # | Bottleneck | Design for production | Reason |
 |---|---|---|---|
-| 1 | The response waits for the work: a webhook is answered only after the order is fetched and stored (about 0.5 s). | Verify the signature, put the delivery in a durable queue and respond, and let another process fetch, store and retry on failure. | Processing time and bursts of orders no longer decide whether the response meets the deadline. |
+| 1 | The response waits for the work: a webhook is answered only after the order is fetched and stored. | Verify the signature, put the delivery in a durable queue and respond, and let another process fetch, store and retry on failure. | Processing time and bursts of orders no longer decide whether the response meets the deadline. |
 | 2 | Writes run one at a time over one connection to one database file, which also ties the app to one machine. | Use a database that accepts concurrent writes and an app that keeps no state, so several instances can run. | Capacity grows with instances, and one failure does not stop the app. |
 | 3 | Only webhooks keep the copy current, and recovering a missed one depends on someone pressing **Sync orders**. | Add periodic reconciliation that fetches the orders changed since the last run and fills in missed webhooks. | Delivery is not guaranteed, and retries end. |
 | 4 | Handled webhooks are not recorded: idempotent writes and the `updatedAt` check absorb repeated order webhooks, but a deletion webhook sent again deletes a reinstalled shop's data. | Record handled webhooks and skip repeats, and compare deletion webhooks with the time of install; this does not fully stop a resent delivery, because the delivery ID and the delivery time are headers, which the signature does not cover. | The same webhook can arrive more than once, and a deletion cannot be undone. |
@@ -328,5 +340,5 @@ The README alone is enough to evaluate the work. These files hold the detail.
 | [docs/database.md](docs/database.md) | Tables, design choices, delete behaviour, customer data |
 | [docs/interpretation.md](docs/interpretation.md) | The reasoning behind each reading of the task |
 | [docs/known-limitations.md](docs/known-limitations.md) | All limitations, the design for production with its evidence, and the dependency audit |
-| [docs/adr/](docs/adr/README.md) | Architecture Decision Records (ADRs): the design decisions linked throughout this README, each with its options and reasoning, and a table summarizing them |
+| [docs/adr/](docs/adr/README.md) | Architecture Decision Records (ADRs): the design decisions in [Design and implementation choices](#design-and-implementation-choices), each with its options and reasoning, and a table summarizing them |
 | [docs/requirements.md](docs/requirements.md) | Requirements, their issues, and the test naming |
