@@ -102,7 +102,9 @@ export async function findOrderTags(
   return order && JSON.parse(order.tags);
 }
 
-const ORDER_LIST_PAGE_SIZE = 50;
+// Each row has a tag field, so rows are tall. 25 keeps the page controls below the
+// table within reach (#122).
+const ORDER_LIST_PAGE_SIZE = 25;
 
 interface ListOrdersOptions {
   after?: string;
