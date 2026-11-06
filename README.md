@@ -28,10 +28,6 @@ Orders are kept as copies of Shopify's data, and tag edits are written to Shopif
 
 ![The order list, with buttons to sync orders and export a CSV file](docs/images/features/order-list.png)
 
-### Empty state
-
-![The order list with no orders yet, and the button to sync orders](docs/images/features/empty-state.png)
-
 ### Tag editing
 
 ![An order with a tag and its remove button, and the field for adding a tag](docs/images/features/tag-editing.png)

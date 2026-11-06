@@ -30,10 +30,6 @@ Webhook で注文を取り込み、マーチャントが注文タグを追加・
 
 ![注文一覧。注文の同期と CSV エクスポートのボタンがある](docs/images/features/order-list.png)
 
-### 空の状態
-
-![まだ注文がない注文一覧と、注文を同期するボタン](docs/images/features/empty-state.png)
-
 ### タグの編集
 
 ![タグとその削除ボタンが付いた注文と、タグを追加する入力欄](docs/images/features/tag-editing.png)
