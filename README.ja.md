@@ -28,15 +28,17 @@ Webhook で注文を取り込み、マーチャントが注文タグを追加・
 
 ### 注文一覧
 
-![注文一覧。注文の同期と CSV エクスポートのボタンがある](docs/images/features/order-list.png)
+![注文一覧。1 ページ 25 件で、下にページの切り替え、タイトルバーに Sync orders と Export CSV がある](docs/images/features/order-list.png)
 
 ### タグの編集
 
-![タグとその削除ボタンが付いた注文と、タグを追加する入力欄](docs/images/features/tag-editing.png)
+![タグと削除ボタンが付いた注文。先頭の注文に新しいタグを追加しているところ](docs/images/features/tag-editing.png)
 
 ### CSV のダウンロード
 
-![エクスポートした CSV ファイルをスプレッドシートで開いたところ](docs/images/features/csv-download.png)
+![エクスポート実行中のタイトルバーの Export CSV](docs/images/features/csv-download.png)
+
+![エクスポートした CSV ファイルをスプレッドシートで開いたところ](docs/images/features/csv-file.png)
 
 ## 必要なもの
 

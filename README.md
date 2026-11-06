@@ -26,15 +26,17 @@ Orders are kept as copies of Shopify's data, and tag edits are written to Shopif
 
 ### Order list
 
-![The order list, with buttons to sync orders and export a CSV file](docs/images/features/order-list.png)
+![The order list, 25 orders per page with the page controls below, and Sync orders and Export CSV in the title bar](docs/images/features/order-list.png)
 
 ### Tag editing
 
-![An order with a tag and its remove button, and the field for adding a tag](docs/images/features/tag-editing.png)
+![Orders with their tags and remove buttons, while a new tag is being added to the first order](docs/images/features/tag-editing.png)
 
 ### CSV download
 
-![The exported CSV file open in a spreadsheet](docs/images/features/csv-download.png)
+![Export CSV in the title bar while the export runs](docs/images/features/csv-download.png)
+
+![The exported CSV file open in a spreadsheet](docs/images/features/csv-file.png)
 
 ## Requirements
 
