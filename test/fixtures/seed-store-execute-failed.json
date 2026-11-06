@@ -1,0 +1,30 @@
+{
+  "error": {
+    "type": "abort",
+    "message": "GraphQL operation failed.",
+    "tryMessage": "{\n  \"errors\": [\n    {\n      \"message\": \"Field 'notAField' doesn't exist on type 'Shop'\",\n      \"locations\": [\n        {\n          \"line\": 1,\n          \"column\": 16\n        }\n      ],\n      \"path\": [\n        \"query\",\n        \"shop\",\n        \"notAField\"\n      ],\n      \"extensions\": {\n        \"code\": \"undefinedField\",\n        \"typeName\": \"Shop\",\n        \"fieldName\": \"notAField\"\n      }\n    }\n  ]\n}",
+    "details": {
+      "errors": [
+        {
+          "message": "Field 'notAField' doesn't exist on type 'Shop'",
+          "locations": [
+            {
+              "line": 1,
+              "column": 16
+            }
+          ],
+          "path": [
+            "query",
+            "shop",
+            "notAField"
+          ],
+          "extensions": {
+            "code": "undefinedField",
+            "typeName": "Shop",
+            "fieldName": "notAField"
+          }
+        }
+      ]
+    }
+  }
+}

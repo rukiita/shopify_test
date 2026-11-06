@@ -1,0 +1,24 @@
+{
+  "data": {
+    "draftOrderCreate": {
+      "draftOrder": null,
+      "userErrors": [
+        {
+          "field": null,
+          "message": "Add at least 1 product"
+        }
+      ]
+    }
+  },
+  "extensions": {
+    "cost": {
+      "requestedQueryCost": 10,
+      "actualQueryCost": 10,
+      "throttleStatus": {
+        "maximumAvailable": 2000,
+        "currentlyAvailable": 1990,
+        "restoreRate": 100
+      }
+    }
+  }
+}

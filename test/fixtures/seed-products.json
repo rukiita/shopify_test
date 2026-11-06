@@ -1,0 +1,149 @@
+{
+  "data": {
+    "products": {
+      "nodes": [
+        {
+          "title": "The Inventory Not Tracked Snowboard",
+          "variants": {
+            "nodes": [
+              {
+                "id": "gid://shopify/ProductVariant/50001817927835"
+              }
+            ]
+          }
+        },
+        {
+          "title": "The Minimal Snowboard",
+          "variants": {
+            "nodes": [
+              {
+                "id": "gid://shopify/ProductVariant/50001817469083"
+              }
+            ]
+          }
+        },
+        {
+          "title": "The Hidden Snowboard",
+          "variants": {
+            "nodes": [
+              {
+                "id": "gid://shopify/ProductVariant/50001817763995"
+              }
+            ]
+          }
+        },
+        {
+          "title": "The Out of Stock Snowboard",
+          "variants": {
+            "nodes": [
+              {
+                "id": "gid://shopify/ProductVariant/50001817501851"
+              }
+            ]
+          }
+        },
+        {
+          "title": "The Videographer Snowboard",
+          "variants": {
+            "nodes": [
+              {
+                "id": "gid://shopify/ProductVariant/50001817731227"
+              }
+            ]
+          }
+        },
+        {
+          "title": "The Complete Snowboard",
+          "variants": {
+            "nodes": [
+              {
+                "id": "gid://shopify/ProductVariant/50001817960603"
+              }
+            ]
+          }
+        },
+        {
+          "title": "The Collection Snowboard: Hydrogen Changed",
+          "variants": {
+            "nodes": [
+              {
+                "id": "gid://shopify/ProductVariant/50001817534619"
+              }
+            ]
+          }
+        },
+        {
+          "title": "Selling Plans Ski Wax",
+          "variants": {
+            "nodes": [
+              {
+                "id": "gid://shopify/ProductVariant/50001817796763"
+              }
+            ]
+          }
+        },
+        {
+          "title": "The Compare at Price Snowboard",
+          "variants": {
+            "nodes": [
+              {
+                "id": "gid://shopify/ProductVariant/50001817895067"
+              }
+            ]
+          }
+        },
+        {
+          "title": "The Multi-location Snowboard",
+          "variants": {
+            "nodes": [
+              {
+                "id": "gid://shopify/ProductVariant/50001818288283"
+              }
+            ]
+          }
+        },
+        {
+          "title": "The Collection Snowboard: Oxygen",
+          "variants": {
+            "nodes": [
+              {
+                "id": "gid://shopify/ProductVariant/50001818321051"
+              }
+            ]
+          }
+        },
+        {
+          "title": "The 3p Fulfilled Snowboard",
+          "variants": {
+            "nodes": [
+              {
+                "id": "gid://shopify/ProductVariant/50001818386587"
+              }
+            ]
+          }
+        },
+        {
+          "title": "The Multi-managed Snowboard",
+          "variants": {
+            "nodes": [
+              {
+                "id": "gid://shopify/ProductVariant/50001818353819"
+              }
+            ]
+          }
+        }
+      ]
+    }
+  },
+  "extensions": {
+    "cost": {
+      "requestedQueryCost": 22,
+      "actualQueryCost": 16,
+      "throttleStatus": {
+        "maximumAvailable": 2000,
+        "currentlyAvailable": 1984,
+        "restoreRate": 100
+      }
+    }
+  }
+}
