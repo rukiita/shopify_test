@@ -48,6 +48,21 @@ it("BE-2 Order list : 1. returns orders newest first", async () => {
   expect(page.hasPreviousPage).toBe(false);
 });
 
+it("BE-2 Order list : 1. a page holds 25 orders", async () => {
+  for (let number = 1; number <= 26; number += 1) {
+    await createOrder(number);
+  }
+
+  const first = await listOrders(SHOP);
+  expect(first.orders).toHaveLength(25);
+  expect(first.orders[0].name).toBe("#26");
+  expect(first.hasNextPage).toBe(true);
+
+  const second = await listOrders(SHOP, { after: orderId(2) });
+  expect(names(second)).toEqual(["#1"]);
+  expect(second.hasNextPage).toBe(false);
+});
+
 it("BE-2 Order list : 1. returns the next page from a cursor", async () => {
   for (const number of [1, 2, 3, 4, 5]) {
     await createOrder(number);
