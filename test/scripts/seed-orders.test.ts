@@ -35,7 +35,9 @@ it("BE-7 Whole app : 4. the seed builds 53 draft order inputs, each with a varia
     expect(input.tags).toEqual(["seed"]);
     expect(input.shippingAddress.countryCode).toBe("US");
   }
-  expect(new Set(inputs.map((input) => input.email)).size).toBe(SEED_ORDER_COUNT);
+  expect(new Set(inputs.map((input) => input.email)).size).toBe(
+    SEED_ORDER_COUNT,
+  );
   expect(new Set(inputs.map((input) => input.lineItems[0].variantId))).toEqual(
     new Set(variantIds),
   );
@@ -100,5 +102,7 @@ it("BE-7 Whole app : 4. the seed accepts only a myshopify.com store", () => {
     "order-tags-dev.myshopify.com",
   );
   expect(() => parseStore([])).toThrow(/--store/);
-  expect(() => parseStore(["--store", "example.com"])).toThrow(/myshopify\.com/);
+  expect(() => parseStore(["--store", "example.com"])).toThrow(
+    /myshopify\.com/,
+  );
 });
