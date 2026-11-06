@@ -56,7 +56,7 @@ Webhook で注文を取り込み、マーチャントが注文タグを追加・
 2. Partner Dashboard で、アプリの **Public distribution** を選びます
 3. Partner Dashboard で、保護された顧客データ(**Name**、**Email**、**Address**)へのアクセスを許可します
 4. アプリを実行し、開発ストアにインストールします: `npm run dev`。データベースもこのとき作成されます
-5. テスト用の決済ゲートウェイ(カード番号 `1`)でテスト注文を作成します。Webhook がその注文を保存します
+5. テスト用の決済ゲートウェイ(カード番号 `1`)でテスト注文を作成します。Webhook がその注文を保存します。注文一覧を 53 件の注文でまとめて埋めるには、`npm run seed:orders` を実行します([詳細](docs/setup.ja.md#53-件のテスト注文をまとめて追加する))
 6. アプリのホームの **Sync orders** で既存の注文をインポートします
 7. テストを実行します: `npm test`
 
@@ -70,6 +70,7 @@ Webhook で注文を取り込み、マーチャントが注文タグを追加・
 | `npm run lint` | ESLint を実行します |
 | `npm run build` | 本番用にアプリをビルドします |
 | `npm run config:link` | 自分の組織にアプリを作成するか、既存のアプリを選択します |
+| `npm run seed:orders -- --store <store>` | `shopify store auth` の後に、開発ストアに 53 件のテスト注文を作成します([詳細](docs/setup.ja.md#53-件のテスト注文をまとめて追加する)) |
 
 ## 技術スタック
 

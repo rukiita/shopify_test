@@ -54,7 +54,7 @@ The full steps, with the admin click paths and screenshots, are in [docs/setup.m
 2. Choose **Public distribution** for your app in the Partner Dashboard
 3. Allow access to protected customer data (**Name**, **Email**, **Address**) in the Partner Dashboard
 4. Run the app and install it on a development store: `npm run dev`. This also creates the database
-5. Place a test order with the test payment gateway (card number `1`). The webhook stores it
+5. Place a test order with the test payment gateway (card number `1`). The webhook stores it. To fill the order list with 53 orders at once, run `npm run seed:orders` ([details](docs/setup.md#add-53-test-orders-at-once))
 6. Import existing orders with **Sync orders** on the app home
 7. Run the tests: `npm test`
 
@@ -68,6 +68,7 @@ The full steps, with the admin click paths and screenshots, are in [docs/setup.m
 | `npm run lint` | Runs ESLint |
 | `npm run build` | Builds the app for production |
 | `npm run config:link` | Creates or selects an app in your own organization |
+| `npm run seed:orders -- --store <store>` | Creates 53 test orders in a development store, after `shopify store auth` ([details](docs/setup.md#add-53-test-orders-at-once)) |
 
 ## Tech stack
 
