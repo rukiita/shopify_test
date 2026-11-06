@@ -1,0 +1,24 @@
+{
+  "data": {
+    "draftOrderComplete": {
+      "draftOrder": {
+        "order": {
+          "id": "gid://shopify/Order/6674764234907",
+          "name": "#1057"
+        }
+      },
+      "userErrors": []
+    }
+  },
+  "extensions": {
+    "cost": {
+      "requestedQueryCost": 11,
+      "actualQueryCost": 11,
+      "throttleStatus": {
+        "maximumAvailable": 2000,
+        "currentlyAvailable": 1989,
+        "restoreRate": 100
+      }
+    }
+  }
+}

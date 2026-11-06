@@ -18,7 +18,8 @@
     "vite": "vite",
     "typecheck": "react-router typegen && graphql-codegen && tsc --noEmit",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "seed:orders": "node scripts/seed-orders.ts"
   },
   "type": "module",
   "engines": {

@@ -67,6 +67,23 @@ A store created with **demo data** has Shopify's test payment gateway enabled ([
 
 The `orders/create` webhook stores the order while `npm run dev` is running, and it appears in the order list on the app home after you reload the page. Editing the order in the Shopify admin (for example, adding a tag) sends `orders/updated`, which updates the stored copy. To look at the stored rows, open the development database with `npx prisma studio` (tables `Order`, `LineItem`, `Product`).
 
+### Add 53 test orders at once
+
+The order list shows 50 orders per page. To see its second page without placing orders by hand, a script creates 53 orders in the store. It uses Shopify CLI's own access to the store, not the app's, so authorize the CLI once first. A browser window asks you to approve the scopes:
+
+```bash
+npx shopify store auth --store <your-store>.myshopify.com --scopes read_products,write_draft_orders,read_orders
+npm run seed:orders -- --store <your-store>.myshopify.com
+```
+
+`<your-store>` is the development store from step 4, as in its admin URL. The script needs Node.js 24 (step 1), which runs it as TypeScript directly.
+
+- **What it creates.** Each order is a draft order that is completed as paid, so its payment gateway is `manual`, not `bogus`. It has one product, taking the store's active products other than gift cards in turn, and a test customer, `seed-buyer-1@example.com` to `seed-buyer-53@example.com`. Shopify creates the customer from the email and the shipping address's name. Every order is tagged `seed`, so the orders can be found in the Shopify admin by that tag.
+- **How long it takes.** On a development store, 53 orders were created in 76 seconds, from the first order to the last. It creates five orders at a time, because most of the time is Shopify CLI starting up for each call.
+- **How the orders reach the app.** While `npm run dev` runs, the `orders/create` webhooks store them. Otherwise, import them with **Sync orders** ([step 6](#6-import-existing-orders)).
+- **Running it again** adds 53 more orders. It does not continue an earlier run.
+- **If it stops,** it prints how many orders it created and the error. If the error is about authentication, run `shopify store auth` again.
+
 ## 6. Import existing orders
 
 Webhooks only report orders placed or changed after the app was installed. To import the orders placed before that, open the app and click **Sync orders** on the app home. The button is disabled while the sync runs, and then shows how many orders were imported. The sync lists the orders with their `updatedAt` and fetches only those not stored yet or changed since they were stored; each of them goes through the same re-fetch (reading the order again from the Admin API) and write as a webhook ([Why the app re-fetches each order](adr/0003-refetch-order-via-graphql.md)). So a second sync imports `0` orders if nothing changed. If a sync stops partway, the page says how many orders were imported before it stopped, and running it again continues from there.
