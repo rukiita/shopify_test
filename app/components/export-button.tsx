@@ -1,31 +1,21 @@
 interface ExportButtonProps {
   exporting: boolean;
-  // The last export did not produce a file.
-  failed: boolean;
   onExport: () => void;
+  // See SyncButton.
+  slot?: "secondary-actions";
 }
 
 // Downloads the shop's orders as a CSV file (#5). Presentational: the page owns the
-// request.
-export function ExportButton({
-  exporting,
-  failed,
-  onExport,
-}: ExportButtonProps) {
+// request and shows a failure.
+export function ExportButton({ exporting, onExport, slot }: ExportButtonProps) {
   return (
-    <s-stack direction="inline" gap="base" alignItems="center">
-      {/* The attributes are only added while exporting: see SyncButton. */}
-      <s-button
-        onClick={onExport}
-        {...(exporting ? { disabled: true, loading: true } : {})}
-      >
-        Export CSV
-      </s-button>
-      {failed && !exporting && (
-        <s-text tone="critical">
-          The orders could not be exported. Try again.
-        </s-text>
-      )}
-    </s-stack>
+    // The attributes are only added while exporting: see SyncButton.
+    <s-button
+      slot={slot}
+      onClick={onExport}
+      {...(exporting ? { disabled: true, loading: true } : {})}
+    >
+      Export CSV
+    </s-button>
   );
 }

@@ -69,7 +69,7 @@ The `orders/create` webhook stores the order while `npm run dev` is running, and
 
 ### Add 53 test orders at once
 
-The order list shows 50 orders per page. To see its second page without placing orders by hand, a script creates 53 orders in the store. It uses Shopify CLI's own access to the store, not the app's, so authorize the CLI once first. A browser window asks you to approve the scopes:
+The order list shows 25 orders per page. To see its later pages without placing orders by hand, a script creates 53 orders in the store. It uses Shopify CLI's own access to the store, not the app's, so authorize the CLI once first. A browser window asks you to approve the scopes:
 
 ```bash
 npx shopify store auth --store <your-store>.myshopify.com --scopes read_products,write_draft_orders,read_orders
@@ -86,7 +86,7 @@ npm run seed:orders -- --store <your-store>.myshopify.com
 
 ## 6. Import existing orders
 
-Webhooks only report orders placed or changed after the app was installed. To import the orders placed before that, open the app and click **Sync orders** on the app home. The button is disabled while the sync runs, and then shows how many orders were imported. The sync lists the orders with their `updatedAt` and fetches only those not stored yet or changed since they were stored; each of them goes through the same re-fetch (reading the order again from the Admin API) and write as a webhook ([Why the app re-fetches each order](adr/0003-refetch-order-via-graphql.md)). So a second sync imports `0` orders if nothing changed. If a sync stops partway, the page says how many orders were imported before it stopped, and running it again continues from there.
+Webhooks only report orders placed or changed after the app was installed. To import the orders placed before that, open the app and click **Sync orders**: in the page body while the app has no orders, and in the title bar once it has some. The button is disabled while the sync runs, and a message then shows how many orders were imported. The sync lists the orders with their `updatedAt` and fetches only those not stored yet or changed since they were stored; each of them goes through the same re-fetch (reading the order again from the Admin API) and write as a webhook ([Why the app re-fetches each order](adr/0003-refetch-order-via-graphql.md)). So a second sync imports `0` orders if nothing changed. If a sync stops partway, a banner on the page says how many orders were imported before it stopped, and running it again continues from there.
 
 The app has `read_orders` without `read_all_orders`, so the Admin API lists only orders created in the last 60 days ([access scopes](https://shopify.dev/docs/api/usage/access-scopes)), and the sync imports only those. `read_all_orders` needs Shopify's approval for an app created under a Partner organization.
 

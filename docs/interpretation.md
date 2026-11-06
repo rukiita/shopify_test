@@ -41,7 +41,7 @@ The address lines from Shopify (`formatted`, without the name) are joined with `
 
 The format table is in the [README](../README.md#csv).
 
-Merchants download the file with the **Export CSV** button above the order list, which is shown once the shop has orders. The file has all of the shop's orders, newest first, with an order's rows in a stable order, and is built from the app's database, so an export makes no Shopify API call. An order with no line items left still gets one row, with the product columns empty.
+Merchants download the file with **Export CSV** in the title bar of the order list, which is shown once the shop has orders. The file has all of the shop's orders, newest first, with an order's rows in a stable order, and is built from the app's database, so an export makes no Shopify API call. An order with no line items left still gets one row, with the product columns empty.
 
 [`samples/orders.csv`](../samples/orders.csv) is a sample of the file. Its orders are made-up test data, written by the same code as the export (`buildOrdersCsv`) rather than downloaded from a store, so that it can show cases such as commas, quotes and formula cells together. `test/domain/orders-csv-sample.test.ts` holds those orders and fails if the file no longer matches what the export writes.
 
@@ -53,7 +53,7 @@ The app uses public distribution, so any store can install it. It is not listed 
 
 Order number, created at, customer, email, total, payment gateway, tags. These are the CSV fields needed to tell orders apart at a glance; the full set is in the CSV.
 
-Orders are listed newest first, 50 per page, from the app's database, so a page view makes no Shopify API call. *Created at* is shown in the browser's time zone: the app does not store the shop's time zone, so it can differ from the Shopify admin when the two zones differ. *Total* is shown in the order's stored currency, formatted in English (`$11.99`, `¥1,500`).
+Orders are listed newest first, 25 per page, from the app's database, so a page view makes no Shopify API call. *Created at* is shown in the browser's time zone: the app does not store the shop's time zone, so it can differ from the Shopify admin when the two zones differ. *Total* is shown in the order's stored currency, formatted in English (`$11.99`, `¥1,500`).
 
 ## Order tags
 
